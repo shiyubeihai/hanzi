@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#f4f1ea">
+<title>五笔消消乐</title>
+<style>
+  :root{
+    --bg:#f4f1ea;
+    --card:#fffdf8;
+    --ink:#2e2a24;
+    --ink-soft:#8a8177;
+    --green:#2f6b4f;
+    --gold:#b8852b;
+    --red:#b23a32;
+    --line:#e6dfd3;
+    --key:#fffdf8;
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ height:100%; }
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+    -webkit-user-select:none; user-select:none;
+  }
+  .app{
+    width:100%; max-width:520px; height:100dvh;
+    display:flex; flex-direction:column;
+    padding:max(10px, env(safe-area-inset-top)) 14px max(10px, env(safe-area-inset-bottom));
+    gap:8px;
+  }
+
+  /* ---------- 状态栏 ---------- */
+  #hud{ display:flex; justify-content:space-between; align-items:flex-end; flex:0 0 auto; padding:0 4px; }
+  .stat{ display:flex; flex-direction:column; gap:1px; }
+  .stat .k{ font-size:10.5px; letter-spacing:.12em; color:var(--ink-soft); }
+  .stat .v{ font-size:24px; font-weight:700; line-height:1; font-variant-numeric:tabular-nums; }
+  .stat.mid{ align-items:center; }
+  .stat.mid .v{ font-size:18px; color:var(--gold); min-width:42px; text-align:center; }
+  .stat.right{ align-items:flex-end; }
+  .stat.right .v{ color:var(--green); }
+  .stat.right .v.low{ color:var(--red); }
+
+  /* ---------- 待消区 ---------- */
+  #board{
+    flex:0 0 auto;
+    display:flex; justify-content:center; gap:clamp(8px,3vw,16px);
+    padding:6px 0 2px;
+  }
+  .slot{
+    position:relative;
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    padding:8px 10px 7px;
+    border-radius:16px;
+    border:1.5px solid transparent;
+    transition:border-color .16s ease, background .16s ease, transform .16s ease;
+    min-width:clamp(70px, 21vw, 96px);
+  }
+  .slot.focus{ border-color:#cfc4ae; background:#fbf7f0; }
+  .slot.gone{ opacity:0; transform:scale(.6); }
+  .slot-char{
+    font-family:"Songti SC","SimSun","STSong",serif;
+    font-size:clamp(38px, 10.5vh, 54px);
+    line-height:1.05;
+    color:var(--ink);
+    transition:color .16s ease, transform .16s ease;
+  }
+  .slot.focus .slot-char{ color:var(--green); }
+  .slot-char.hit{ animation:clearPop 320ms cubic-bezier(.2,1.3,.4,1); }
+  @keyframes clearPop{
+    0%{ transform:scale(1); }
+    40%{ transform:scale(1.22); color:var(--gold); }
+    100%{ transform:scale(1); }
+  }
+  .slot-char.bad{ animation:shakeX 260ms ease; }
+  @keyframes shakeX{
+    0%,100%{ transform:translateX(0); }
+    25%{ transform:translateX(-7px); }
+    50%{ transform:translateX(6px); }
+    75%{ transform:translateX(-3px); }
+  }
+  .slot-code{ display:flex; gap:4px; }
+  .chip{
+    display:flex; align-items:center; justify-content:center;
+    width:clamp(19px,5vw,24px); height:clamp(19px,5vw,24px);
+    border-radius:6px;
+    border:1.5px solid #e2d9ca;
+    background:#fffdf8;
+    font-family:"SF Mono",Menlo,Consolas,monospace;
+    font-size:clamp(10px,2.8vw,12px); font-weight:700;
+    color:#b6ada0; font-style:normal;
+    transition:all .15s ease;
+  }
+  .chip.on{
+    background:var(--green); border-color:var(--green); color:#fff;
+    transform:scale(1.06);
+  }
+  .slot.done .chip{ background:var(--gold); border-color:var(--gold); color:#fff; }
+  .slot-badge{
+    position:absolute; top:2px; right:4px;
+    font-size:9px; color:var(--gold); letter-spacing:.05em;
+    opacity:0; transition:opacity .2s;
+  }
+  .slot.hinted .slot-badge{ opacity:1; }
+
+  /* ---------- 提示条 ---------- */
+  #tip{
+    flex:0 0 auto;
+    min-height:44px;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    gap:1px;
+    text-align:center; padding:0 8px;
+  }
+  .tip-key{
+    font-size:11px; color:var(--ink-soft);
+    letter-spacing:.08em;
+  }
+  .tip-key b{ color:var(--gold); font-weight:700; }
+  .tip-mn{
+    font-size:clamp(13px,3.7vw,16px);
+    color:var(--green); letter-spacing:.06em;
+    font-weight:600;
+  }
+  .tip-mn.warn{ color:var(--red); }
+  .tip-sub{ font-size:11.5px; color:var(--ink-soft); }
+  .tip-sub b{ color:var(--ink); }
+
+  /* ---------- 键盘（QWERTY 26 键） ---------- */
+  #keys{
+    flex:1 1 auto;
+    display:flex; flex-direction:column; justify-content:center;
+    gap:clamp(4px,1.3vw,7px);
+    min-height:0;
+    padding:2px 0;
+  }
+  .kb-row{ display:flex; gap:clamp(3px,1vw,6px); justify-content:center; width:100%; }
+  .kb-row.r2{ padding:0 4.5%; }
+  .kb-row.r3{ padding:0 13%; }
+  .key{
+    flex:1 1 0; min-width:0;
+    appearance:none; border:1.5px solid var(--line);
+    background:var(--key); border-radius:clamp(8px,2.2vw,11px);
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    gap:0px; cursor:pointer; padding:clamp(5px,1.6vh,9px) 1px;
+    transition:background .1s ease, border-color .1s ease, transform .06s ease;
+    box-shadow:0 1px 3px rgba(120,108,92,.07);
+    position:relative; overflow:hidden;
+  }
+  .key:active{ transform:scale(.94); }
+  .kk-letter{
+    font-family:"SF Mono",Menlo,Consolas,monospace;
+    font-size:clamp(12px, 3.4vw, 16px);
+    font-weight:700; line-height:1.05;
+    color:var(--ink);
+  }
+  .kk-name{
+    font-family:"Songti SC","SimSun","STSong",serif;
+    font-size:clamp(9px, 2.5vw, 12px);
+    line-height:1.1; color:#a89f92;
+    margin-top:1px;
+  }
+  .key.dead{ opacity:.38; }
+  .key.ok{ background:#e8f3ec; border-color:var(--green); }
+  .key.ok .kk-letter{ color:var(--green); }
+  .key.ok .kk-name{ color:#6a9d80; }
+  .key.bad{ background:#fbeceb; border-color:var(--red); animation:shakeKey .22s ease; }
+  .key.bad .kk-letter{ color:var(--red); }
+  @keyframes shakeKey{
+    0%,100%{ transform:translateX(0); }
+    35%{ transform:translateX(-3px); }
+    70%{ transform:translateX(3px); }
+  }
+  .key.hint{
+    background:#fdf2da; border-color:var(--gold);
+    animation:hintPulse .7s ease 2;
+  }
+  .key.hint .kk-letter{ color:var(--gold); }
+  .key.hint .kk-name{ color:#c9a25a; }
+  @keyframes hintPulse{
+    0%,100%{ box-shadow:0 0 0 0 rgba(184,133,43,0); }
+    50%{ box-shadow:0 0 0 5px rgba(184,133,43,.28); }
+  }
+
+  /* ---------- 底部按钮 ---------- */
+  #tools{
+    flex:0 0 auto;
+    display:flex; gap:8px;
+  }
+  .tool{
+    flex:1;
+    appearance:none; border:1.5px solid var(--line);
+    background:var(--card); border-radius:12px;
+    padding:10px 8px;
+    font-family:inherit; font-size:13px; font-weight:600;
+    color:var(--ink-soft); cursor:pointer;
+    transition:transform .1s ease, background .15s ease, color .15s ease;
+  }
+  .tool:active{ transform:scale(.97); }
+  .tool.accent{ color:var(--gold); border-color:#e4d5b6; background:#fdf8ee; }
+
+  /* ---------- 字根表抽屉 ---------- */
+  #sheet, #ruleSheet{
+    position:fixed; left:0; right:0; bottom:0;
+    background:var(--card);
+    border-radius:22px 22px 0 0;
+    box-shadow:0 -10px 40px rgba(90,80,66,.22);
+    transform:translateY(100%);
+    transition:transform .28s cubic-bezier(.3,.9,.4,1);
+    z-index:60;
+    max-height:80dvh;
+    display:flex; flex-direction:column;
+  }
+  #sheet.open, #ruleSheet.open{ transform:translateY(0); }
+
+  .rule-body{
+    display:block;
+    padding:2px 20px 26px;
+    font-size:13px; line-height:1.8; color:#5c554b;
+  }
+  .rule-body h4{
+    font-size:14px; color:var(--ink);
+    margin:18px 0 4px; letter-spacing:.03em;
+  }
+  .rule-body h4:first-of-type{ margin-top:10px; }
+  .rule-body h4 span{
+    display:inline-block;
+    width:19px; height:19px; line-height:19px;
+    text-align:center; border-radius:50%;
+    background:#f2ead9; color:var(--gold);
+    font-size:11px; font-weight:700; margin-right:7px;
+    vertical-align:1px;
+  }
+  .rule-body p{ margin:0 0 6px; }
+  .rule-body .ex{
+    background:#faf7f1;
+    border-left:3px solid #e0d5c0;
+    padding:7px 11px; margin:5px 0 2px;
+    font-size:12.5px; border-radius:0 8px 8px 0;
+  }
+  .rule-body .ex b{
+    font-family:"Songti SC","SimSun",serif;
+    font-size:15px; color:var(--ink); margin-right:2px;
+  }
+  .rule-body .note{
+    margin-top:20px;
+    background:#eff6f1; border-radius:11px;
+    padding:11px 13px;
+    font-size:12.5px; color:#3f6b52; line-height:1.75;
+  }
+  .rule-body .note b{ color:var(--green); }
+  .sheet-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 18px 10px; flex:0 0 auto;
+    border-bottom:1px solid var(--line);
+  }
+  .sheet-title{ font-size:15px; font-weight:700; letter-spacing:.06em; }
+  .sheet-close{
+    appearance:none; border:none; background:none;
+    font-size:22px; color:var(--ink-soft); cursor:pointer;
+    padding:0 4px; line-height:1;
+  }
+  .sheet-search{ padding:10px 14px 2px; flex:0 0 auto; }
+  .sheet-search input{
+    width:100%; padding:9px 13px;
+    border:1.5px solid var(--line); border-radius:11px;
+    background:#faf7f1; font-family:inherit; font-size:14px;
+    color:var(--ink); outline:none;
+  }
+  .sheet-search input:focus{ border-color:#cdbfa6; background:#fffdf8; }
+  .sheet-search input::placeholder{ color:#bdb4a7; }
+
+  .sheet-body{
+    overflow-y:auto; -webkit-overflow-scrolling:touch;
+    padding:10px 14px 22px;
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(160px, 1fr));
+    gap:8px;
+  }
+  .rk{
+    display:flex; align-items:flex-start; gap:8px;
+    background:#faf7f1; border-radius:10px;
+    padding:8px 10px;
+    border:1px solid #efe8db;
+  }
+  .rk-key{
+    flex:0 0 auto;
+    width:34px; height:34px; border-radius:9px;
+    background:var(--key); border:1px solid var(--line);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .rk-key .n{
+    font-family:"Songti SC","SimSun",serif;
+    font-size:16px; font-weight:700; line-height:1;
+  }
+  .rk-key .l{
+    font-family:"SF Mono",monospace;
+    font-size:8px; color:#b0a89c; line-height:1;
+  }
+  .rk-rad{
+    font-size:12px; line-height:1.5; color:#6e665b;
+    align-self:center;
+  }
+  .rk-pos{
+    font-size:9px; color:#c5bcaf; margin-left:auto; align-self:flex-start;
+  }
+
+  /* ---------- 遮罩 / 卡片 ---------- */
+  .overlay{
+    position:fixed; inset:0;
+    background:rgba(244,241,234,.94);
+    -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
+    display:flex; align-items:center; justify-content:center;
+    padding:24px; z-index:50;
+  }
+  .overlay.hidden{ display:none; }
+  .card{
+    width:100%; max-width:360px;
+    background:var(--card);
+    border-radius:24px; padding:26px 22px 22px;
+    box-shadow:0 16px 44px rgba(120,108,92,.15);
+    text-align:center;
+    animation:cardIn 220ms cubic-bezier(.2,1.2,.4,1) both;
+  }
+  @keyframes cardIn{
+    0%{ transform:translateY(12px) scale(.97); opacity:0; }
+    100%{ transform:translateY(0) scale(1); opacity:1; }
+  }
+  .title{
+    font-family:"Songti SC","SimSun",serif;
+    font-size:27px; font-weight:700; letter-spacing:.1em;
+  }
+  .subtitle{ font-size:11px; letter-spacing:.3em; color:var(--ink-soft); margin:6px 0 16px; }
+  .desc{ font-size:13px; line-height:1.85; color:var(--ink-soft); margin-bottom:18px; text-align:left; }
+  .desc b{ color:var(--ink); font-weight:600; }
+
+  .btn{
+    appearance:none; border:none; width:100%;
+    padding:13px 18px; border-radius:14px;
+    font-family:inherit; font-size:16px; font-weight:600;
+    cursor:pointer; color:var(--ink); background:#e9e4dc;
+    transition:transform .1s ease;
+  }
+  .btn:active{ transform:scale(.975); }
+  .btn.primary{
+    background:linear-gradient(180deg,#3c7d5e,#2f6b4f); color:#fff;
+    box-shadow:0 5px 14px rgba(47,107,79,.28);
+  }
+  .btn.ghost{ background:transparent; color:var(--ink-soft); font-weight:500; }
+  .btn-row{ display:flex; flex-direction:column; gap:6px; margin-top:10px; }
+
+  .end-score{
+    font-size:54px; font-weight:800; line-height:1;
+    font-variant-numeric:tabular-nums; color:var(--green);
+  }
+  .end-unit{ font-size:12px; color:var(--ink-soft); letter-spacing:.1em; }
+  .end-stats{ font-size:13px; color:var(--ink-soft); line-height:1.95; margin:14px 0 18px; }
+  .end-stats b{ color:var(--ink); font-weight:600; font-variant-numeric:tabular-nums; }
+  .note{ font-size:11px; color:#b9b1a5; line-height:1.7; margin-top:14px; }
+
+  @media (max-height: 640px){
+    .slot-char{ font-size:clamp(32px,9vh,44px); }
+    .kk-name{ font-size:clamp(13px,3.6vw,18px); }
+    #board{ padding:2px 0; }
+    .slot{ padding:5px 8px 5px; gap:4px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header id="hud">
+    <div class="stat"><span class="k">得分</span><span class="v" id="score">0</span></div>
+    <div class="stat mid"><span class="k">连击</span><span class="v" id="combo">—</span></div>
+    <div class="stat right"><span class="k">剩余</span><span class="v" id="time">90</span></div>
+  </header>
+
+  <section id="board"></section>
+  <div id="tip"></div>
+  <section id="keys"></section>
+
+  <div id="tools">
+    <button class="tool" id="btnSheet">字根表</button>
+    <button class="tool" id="btnRule">拆字规则</button>
+    <button class="tool accent" id="btnSkip">换一个字</button>
+  </div>
+</div>
+
+<!-- 字根表 -->
+<div id="sheet">
+  <div class="sheet-head">
+    <span class="sheet-title">五笔字根表</span>
+    <button class="sheet-close" id="sheetClose">×</button>
+  </div>
+  <div class="sheet-search">
+    <input id="radSearch" type="text" placeholder="输入一个字根，查它在哪个键" autocomplete="off">
+  </div>
+  <div class="sheet-body" id="sheetBody"></div>
+</div>
+
+<!-- 拆字规则 -->
+<div id="ruleSheet">
+  <div class="sheet-head">
+    <span class="sheet-title">五笔拆字规则</span>
+    <button class="sheet-close" id="ruleClose">×</button>
+  </div>
+  <div class="sheet-body rule-body">
+    <h4><span>一</span>书写顺序</h4>
+    <p>按写字顺序拆：先左后右、先上后下、先外后内。</p>
+    <div class="ex"><b>明</b> → 日 + 月</div>
+
+    <h4><span>二</span>取大优先</h4>
+    <p>能凑成一个大的字根，就不要拆成几个小的。</p>
+    <div class="ex"><b>克</b> → 十 + 兄　（不是 一 + 古 + 儿）</div>
+
+    <h4><span>三</span>兼顾直观</h4>
+    <p>字根轮廓明显时，按看起来最自然的方式拆。</p>
+    <div class="ex"><b>自</b> → 丿 + 目</div>
+
+    <h4><span>四</span>能连不交</h4>
+    <p>能拆成「相连」的，就不拆成「交叉」的。</p>
+    <div class="ex"><b>天</b> → 一 + 大　（不拆 二 + 人）</div>
+
+    <h4><span>五</span>能散不连</h4>
+    <p>能拆成「散开」的，就不拆成「相连」的。</p>
+    <div class="ex"><b>午</b> → 十 + 一　（不拆 丿 + 干）</div>
+
+    <div class="note">
+      <b>这个游戏只考前两码</b><br>
+      一级简码：只要知道第一个字根在哪个键。<br>
+      二级简码：只要知道前两个字根各在哪个键。<br>
+      拆出前两个就够，后面的不用管。
+    </div>
+  </div>
+</div>
+
+<!-- 开始 -->
+<div class="overlay" id="ovStart">
+  <div class="card">
+    <div class="title">五笔消消乐</div>
+    <div class="subtitle">WU BI XIAO XIAO LE</div>
+    <p class="desc">
+      屏幕上出三个字，按出它们的五笔编码就能消掉。<br>
+      每个键下方标着它的<b>键名</b>——看到「明」就去找「日」和「月」。<br>
+      <b>按错不扣分</b>，会直接亮出正确那个键。
+    </p>
+    <button class="btn primary" id="btnStart">开始</button>
+    <div class="btn-row">
+      <button class="btn ghost" id="btnRuleStart">先看拆字规则</button>
+      <button class="btn ghost" id="btnSheetStart">先看字根表</button>
+    </div>
+    <div class="note">题库为一级简码 25 字 + 二级简码 605 字</div>
+  </div>
+</div>
+
+<!-- 结算 -->
+<div class="overlay hidden" id="ovEnd">
+  <div class="card">
+    <div class="subtitle" style="margin-bottom:12px;">本局成绩</div>
+    <div><span class="end-score" id="endScore">0</span> <span class="end-unit">分</span></div>
+    <div class="end-stats" id="endStats"></div>
+    <button class="btn primary" id="btnAgain">再来一局</button>
+    <div class="btn-row">
+      <button class="btn ghost" id="btnHome">回到封面</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  var KEYS = [["G","王",11,"王 一 五 戋","王旁青头戋五一"],["F","土",12,"土 士 二 干 十 寸 雨","土士二干十寸雨"],["D","大",13,"大 犬 三 羊 古 石 厂","大犬三羊古石厂"],["S","木",14,"木 丁 西","木丁西"],["A","工",15,"工 匚 戈 艹 七","工戈草头右框七"],["H","目",21,"目 且 上 止 卜 虍 皮","目具上止卜虎皮"],["J","日",22,"日 曰 早 虫 刂","日早两竖与虫依"],["K","口",23,"口 川","口与川字根稀"],["L","田",24,"田 甲 囗 四 车 力","田甲方框四车力"],["M","山",25,"山 由 贝 冂 几","山由贝下框几"],["T","禾",31,"禾 竹 丿 彳 攵","禾竹一撇双人立"],["R","白",32,"白 手 扌 斤","白手看头三二斤"],["E","月",33,"月 彡 乃 用 豕 衣","月彡乃用家衣底"],["W","人",34,"人 亻 八","人和八三四里"],["Q","金",35,"金 钅 勹 儿 夕 犭","金勺缺点无尾鱼"],["Y","言",41,"言 讠 文 方 广 亠","言文方广在四一"],["U","立",42,"立 辛 丬 六 门 疒","立辛两点六门疒"],["I","水",43,"水 氵 小 ⺌","水旁兴头小倒立"],["O","火",44,"火 灬 业 米","火业头四点米"],["P","之",45,"之 辶 宀 冖 廴","之宝盖摘示衣"],["N","已",51,"已 己 巳 尸 心 忄 羽 乙","已半巳满不出己"],["B","子",52,"子 孑 耳 阝 了 也","子耳了也框向上"],["V","女",53,"女 刀 九 臼 彐","女刀九臼山朝西"],["C","又",54,"又 巴 马 厶","又巴马丢矢矣"],["X","纟",55,"纟 幺 弓 匕","慈母无心弓和匕"]];
+  var BANK = [["工","a",1],["了","b",1],["以","c",1],["在","d",1],["有","e",1],["地","f",1],["一","g",1],["上","h",1],["不","i",1],["是","j",1],["中","k",1],["国","l",1],["同","m",1],["民","n",1],["为","o",1],["这","p",1],["我","q",1],["的","r",1],["要","s",1],["和","t",1],["产","u",1],["发","v",1],["人","w",1],["经","x",1],["主","y",1],["式","aa",2],["节","ab",2],["芭","ac",2],["基","ad",2],["菜","ae",2],["革","af",2],["七","ag",2],["牙","ah",2],["东","ai",2],["划","aj",2],["或","ak",2],["功","al",2],["贡","am",2],["世","an",2],["蒌","ao",2],["芝","ap",2],["区","aq",2],["匠","ar",2],["苛","as",2],["攻","at",2],["燕","au",2],["切","av",2],["共","aw",2],["药","ax",2],["芳","ay",2],["陈","ba",2],["子","bb",2],["取","bc",2],["承","bd",2],["阴","be",2],["际","bf",2],["卫","bg",2],["耻","bh",2],["孙","bi",2],["阳","bj",2],["职","bk",2],["阵","bl",2],["出","bm",2],["也","bn",2],["耿","bo",2],["辽","bp",2],["隐","bq",2],["孤","br",2],["阿","bs",2],["降","bt",2],["联","bu",2],["限","bv",2],["队","bw",2],["陛","bx",2],["防","by",2],["戏","ca",2],["邓","cb",2],["双","cc",2],["参","cd",2],["能","ce",2],["对","cf",2],["骊","cg",2],["骒","cj",2],["台","ck",2],["劝","cl",2],["观","cm",2],["马","cn",2],["驼","cp",2],["允","cq",2],["牟","cr",2],["骠","cs",2],["矣","ct",2],["骈","cu",2],["艰","cv",2],["难","cw",2],["驻","cy",2],["左","da",2],["顾","db",2],["友","dc",2],["大","dd",2],["胡","de",2],["夺","df",2],["三","dg",2],["丰","dh",2],["砂","di",2],["百","dj",2],["右","dk",2],["历","dl",2],["面","dm",2],["成","dn",2],["灰","do",2],["达","dp",2],["克","dq",2],["原","dr",2],["厅","ds",2],["帮","dt",2],["磁","du",2],["肆","dv",2],["春","dw",2],["龙","dx",2],["太","dy",2],["肛","ea",2],["服","eb",2],["肥","ec",2],["须","ed",2],["朋","ee",2],["肝","ef",2],["且","eg",2],["鼐","eh",2],["膛","ei",2],["胆","ej",2],["肿","ek",2],["肋","el",2],["肌","em",2],["甩","en",2],["膦","eo",2],["爱","ep",2],["胸","eq",2],["遥","er",2],["采","es",2],["用","et",2],["胶","eu",2],["妥","ev",2],["脸","ew",2],["脂","ex",2],["及","ey",2],["载","fa",2],["支","fc",2],["城","fd",2],["圾","fe",2],["寺","ff",2],["二","fg",2],["直","fh",2],["示","fi",2],["进","fj",2],["吉","fk",2],["协","fl",2],["南","fm",2],["志","fn",2],["赤","fo",2],["过","fp",2],["无","fq",2],["垢","fr",2],["霜","fs",2],["才","ft",2],["增","fu",2],["雪","fv",2],["夫","fw",2],["坳","fx",2],["坟","fy",2],["开","ga",2],["屯","gb",2],["到","gc",2],["天","gd",2],["表","ge",2],["于","gf",2],["五","gg",2],["下","gh",2],["理","gj",2],["事","gk",2],["画","gl",2],["现","gm",2],["与","gn",2],["来","go",2],["列","gq",2],["珠","gr",2],["末","gs",2],["玫","gt",2],["平","gu",2],["妻","gv",2],["珍","gw",2],["互","gx",2],["玉","gy",2],["虎","ha",2],["齰","hb",2],["皮","hc",2],["睚","hd",2],["肯","he",2],["睦","hf",2],["睛","hg",2],["止","hh",2],["步","hi",2],["旧","hj",2],["占","hk",2],["卤","hl",2],["贞","hm",2],["卢","hn",2],["眯","ho",2],["瞎","hp",2],["餐","hq",2],["睥","hr",2],["盯","hs",2],["睡","ht",2],["瞳","hu",2],["眼","hv",2],["具","hw",2],["此","hx",2],["眩","hy",2],["江","ia",2],["池","ib",2],["汉","ic",2],["尖","id",2],["肖","ie",2],["法","if",2],["汪","ig",2],["小","ih",2],["水","ii",2],["浊","ij",2],["澡","ik",2],["渐","il",2],["没","im",2],["沁","in",2],["淡","io",2],["学","ip",2],["光","iq",2],["泊","ir",2],["洒","is",2],["少","it",2],["洋","iu",2],["当","iv",2],["兴","iw",2],["涨","ix",2],["注","iy",2],["虹","ja",2],["最","jb",2],["紧","jc",2],["晨","jd",2],["明","je",2],["时","jf",2],["量","jg",2],["早","jh",2],["晃","ji",2],["昌","jj",2],["蝇","jk",2],["曙","jl",2],["遇","jm",2],["电","jn",2],["显","jo",2],["晕","jp",2],["晚","jq",2],["蝗","jr",2],["果","js",2],["昨","jt",2],["暗","ju",2],["归","jv",2],["蛤","jw",2],["昆","jx",2],["景","jy",2],["呀","ka",2],["啊","kb",2],["吧","kc",2],["顺","kd",2],["吸","ke",2],["叶","kf",2],["呈","kg",2],["吵","ki",2],["虽","kj",2],["吕","kk",2],["另","kl",2],["员","km",2],["叫","kn",2],["咪","ko",2],["喧","kp",2],["史","kq",2],["听","kr",2],["呆","ks",2],["呼","kt",2],["啼","ku",2],["哪","kv",2],["只","kw",2],["哟","kx",2],["嘛","ky",2],["轼","la",2],["囝","lb",2],["轻","lc",2],["因","ld",2],["胃","le",2],["轩","lf",2],["车","lg",2],["四","lh",2],["辊","lj",2],["加","lk",2],["男","ll",2],["轴","lm",2],["思","ln",2],["辚","lo",2],["边","lp",2],["罗","lq",2],["斩","lr",2],["困","ls",2],["力","lt",2],["较","lu",2],["轨","lv",2],["办","lw",2],["累","lx",2],["罚","ly",2],["曲","ma",2],["邮","mb",2],["凤","mc",2],["央","md",2],["骨","me",2],["财","mf",2],["由","mh",2],["峭","mi",2],["则","mj",2],["迥","mk",2],["崭","ml",2],["册","mm",2],["岂","mn",2],["嶙","mo",2],["迪","mp",2],["风","mq",2],["贩","mr",2],["朵","ms",2],["几","mt",2],["赠","mu",2],["内","mw",2],["嶷","mx",2],["凡","my",2],["敢","nb",2],["怪","nc",2],["居","nd",2],["导","nf",2],["怀","ng",2],["收","nh",2],["悄","ni",2],["慢","nj",2],["避","nk",2],["惭","nl",2],["届","nm",2],["忆","nn",2],["屡","no",2],["忱","np",2],["懈","nq",2],["怕","nr",2],["怵","ns",2],["必","nt",2],["习","nu",2],["恨","nv",2],["愉","nw",2],["尼","nx",2],["心","ny",2],["煤","oa",2],["籽","ob",2],["烃","oc",2],["类","od",2],["粗","oe",2],["灶","of",2],["业","og",2],["粘","oh",2],["炒","oi",2],["烛","oj",2],["炽","ok",2],["烟","ol",2],["灿","om",2],["断","on",2],["炎","oo",2],["迷","op",2],["炮","oq",2],["煌","or",2],["灯","os",2],["烽","ot",2],["料","ou",2],["娄","ov",2],["粉","ow",2],["糨","ox",2],["米","oy",2],["宽","pa",2],["字","pb",2],["害","pd",2],["家","pe",2],["守","pf",2],["定","pg",2],["寂","ph",2],["宵","pi",2],["审","pj",2],["宫","pk",2],["军","pl",2],["宙","pm",2],["官","pn",2],["灾","po",2],["之","pp",2],["宛","pq",2],["宾","pr",2],["宁","ps",2],["客","pt",2],["实","pu",2],["安","pv",2],["空","pw",2],["它","px",2],["社","py",2],["氏","qa",2],["凶","qb",2],["色","qc",2],["然","qd",2],["角","qe",2],["针","qf",2],["钱","qg",2],["外","qh",2],["乐","qi",2],["旬","qj",2],["名","qk",2],["甸","ql",2],["负","qm",2],["包","qn",2],["炙","qo",2],["锭","qp",2],["多","qq",2],["铁","qr",2],["钉","qs",2],["儿","qt",2],["匀","qu",2],["争","qv",2],["欠","qw",2],["镪","qx",2],["久","qy",2],["找","ra",2],["报","rb",2],["反","rc",2],["拓","rd",2],["扔","re",2],["持","rf",2],["后","rg",2],["年","rh",2],["朱","ri",2],["提","rj",2],["扣","rk",2],["押","rl",2],["抽","rm",2],["所","rn",2],["搂","ro",2],["近","rp",2],["换","rq",2],["折","rr",2],["打","rs",2],["手","rt",2],["拉","ru",2],["扫","rv",2],["失","rw",2],["批","rx",2],["扩","ry",2],["械","sa",2],["李","sb",2],["权","sc",2],["枯","sd",2],["极","se",2],["村","sf",2],["本","sg",2],["相","sh",2],["档","si",2],["查","sj",2],["可","sk",2],["楞","sl",2],["机","sm",2],["杨","sn",2],["杰","so",2],["棕","sp",2],["构","sq",2],["析","sr",2],["林","ss",2],["格","st",2],["样","su",2],["检","sw",2],["楷","sx",2],["术","sy",2],["长","ta",2],["季","tb",2],["么","tc",2],["知","td",2],["秀","te",2],["行","tf",2],["生","tg",2],["处","th",2],["秒","ti",2],["得","tj",2],["各","tk",2],["务","tl",2],["向","tm",2],["秘","tn",2],["秋","to",2],["管","tp",2],["称","tq",2],["物","tr",2],["条","ts",2],["笔","tt",2],["科","tu",2],["委","tv",2],["答","tw",2],["第","tx",2],["入","ty",2],["并","ua",2],["闻","ub",2],["冯","uc",2],["关","ud",2],["前","ue",2],["半","uf",2],["闰","ug",2],["站","uh",2],["冰","ui",2],["间","uj",2],["部","uk",2],["曾","ul",2],["商","um",2],["决","un",2],["普","uo",2],["帝","up",2],["交","uq",2],["瓣","ur",2],["亲","us",2],["立","uu",2],["妆","uv",2],["闪","uw",2],["北","ux",2],["六","uy",2],["毁","va",2],["好","vb",2],["妈","vc",2],["姑","vd",2],["奶","ve",2],["寻","vf",2],["姨","vg",2],["叟","vh",2],["录","vi",2],["旭","vj",2],["如","vk",2],["舅","vl",2],["妯","vm",2],["刀","vn",2],["灵","vo",2],["巡","vp",2],["婚","vq",2],["姝","vr",2],["杂","vs",2],["九","vt",2],["嫌","vu",2],["妇","vv",2],["臾","vw",2],["姆","vx",2],["妨","vy",2],["代","wa",2],["他","wb",2],["公","wc",2],["估","wd",2],["仍","we",2],["会","wf",2],["全","wg",2],["个","wh",2],["偿","wi",2],["介","wj",2],["保","wk",2],["佃","wl",2],["仙","wm",2],["亿","wn",2],["伙","wo",2],["侬","wp",2],["你","wq",2],["伯","wr",2],["休","ws",2],["作","wt",2],["们","wu",2],["分","wv",2],["从","ww",2],["化","wx",2],["信","wy",2],["红","xa",2],["弛","xb",2],["顷","xd",2],["级","xe",2],["结","xf",2],["线","xg",2],["引","xh",2],["纱","xi",2],["旨","xj",2],["强","xk",2],["细","xl",2],["纲","xm",2],["纪","xn",2],["继","xo",2],["综","xp",2],["约","xq",2],["绵","xr",2],["缥","xs",2],["张","xt",2],["弱","xu",2],["绿","xv",2],["给","xw",2],["比","xx",2],["纺","xy",2],["度","ya",2],["离","yb",2],["充","yc",2],["庆","yd",2],["衣","ye",2],["计","yf",2],["让","yh",2],["就","yi",2],["刘","yj",2],["训","yk",2],["高","ym",2],["记","yn",2],["变","yo",2],["义","yq",2],["诉","yr",2],["订","ys",2],["放","yt",2],["说","yu",2],["良","yv",2],["认","yw",2],["率","yx",2],["方","yy",2]];
+
+  var CFG = {
+    DURATION: 90000,
+    SLOTS: 3,
+    SCORE_HIT: 10,
+    SCORE_HINTED: 3,
+    COMBO_BONUS: 5
+  };
+
+  function $(id){ return document.getElementById(id); }
+  var elScore = $('score'), elCombo = $('combo'), elTime = $('time');
+  var elBoard = $('board'), elKeys = $('keys'), elTip = $('tip');
+  var ovStart = $('ovStart'), ovEnd = $('ovEnd');
+
+  var KEYMAP = {};
+  for (var ki = 0; ki < KEYS.length; ki++) KEYMAP[KEYS[ki][0]] = KEYS[ki];
+
+  var G = {
+    phase: 'IDLE',
+    score: 0,
+    combo: 0,
+    bestCombo: 0,
+    timeLeft: 0,
+    cleared: 0,
+    attempts: 0,
+    misses: 0,
+    hintedCount: 0,
+    slots: [],
+    focus: 0,
+    input: ''
+  };
+
+  var rafId = 0, lastT = 0;
+
+  /* ---------- 建键盘 ---------- */
+  (function buildKeys(){
+    var ROWS = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
+    elKeys.innerHTML = '';
+    for (var r = 0; r < ROWS.length; r++){
+      var row = document.createElement('div');
+      row.className = 'kb-row r' + (r + 1);
+      var letters = ROWS[r].split('');
+      for (var i = 0; i < letters.length; i++){
+        var L = letters[i];
+        var info = KEYMAP[L];
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.setAttribute('data-k', L);
+        if (info){
+          b.className = 'key';
+          b.innerHTML =
+            '<span class="kk-letter">' + L + '</span>' +
+            '<span class="kk-name">' + info[1] + '</span>';
+          (function(letter){
+            b.addEventListener('click', function(){ press(letter); });
+          })(L);
+        } else {
+          b.className = 'key dead';
+          b.disabled = true;
+          b.innerHTML =
+            '<span class="kk-letter">Z</span>' +
+            '<span class="kk-name">万能</span>';
+        }
+        row.appendChild(b);
+      }
+      elKeys.appendChild(row);
+    }
+  })();
+
+  /* ---------- 字根表 ---------- */
+  (function buildSheet(){
+    var html = '';
+    for (var i = 0; i < KEYS.length; i++){
+      var k = KEYS[i];
+      html += '<div class="rk">' +
+        '<span class="rk-key"><span class="n">' + k[1] + '</span><span class="l">' + k[0] + '</span></span>' +
+        '<span class="rk-rad">' + k[3] + '</span>' +
+        '<span class="rk-pos">' + k[2] + '</span>' +
+        '</div>';
+    }
+    $('sheetBody').innerHTML = html;
+  })();
+
+  var radSearchEl = $('radSearch');
+  radSearchEl.addEventListener('input', function(){
+    var q = this.value.trim();
+    var items = $('sheetBody').querySelectorAll('.rk');
+    var hit = 0;
+    for (var i = 0; i < items.length; i++){
+      var show = !q || items[i].textContent.indexOf(q) >= 0;
+      items[i].style.display = show ? '' : 'none';
+      if (show) hit++;
+    }
+    var tipEl = $('radEmpty');
+    if (!tipEl){
+      tipEl = document.createElement('div');
+      tipEl.id = 'radEmpty';
+      tipEl.style.cssText = 'grid-column:1/-1;padding:18px 4px;font-size:13px;color:#b9b1a5;';
+      $('sheetBody').appendChild(tipEl);
+    }
+    tipEl.textContent = hit ? '' : ('没有包含「' + q + '」的键，换个字根试试');
+    tipEl.style.display = hit ? 'none' : '';
+  });
+
+  function openSheet(){ $('sheet').classList.add('open'); }
+  function closeSheet(){ $('sheet').classList.remove('open'); }
+  function openRule(){ $('ruleSheet').classList.add('open'); }
+  function closeRule(){ $('ruleSheet').classList.remove('open'); }
+
+  $('btnSheet').addEventListener('click', openSheet);
+  $('btnSheetStart').addEventListener('click', openSheet);
+  $('sheetClose').addEventListener('click', closeSheet);
+  $('sheet').addEventListener('click', function(e){
+    if (e.target === $('sheet')) closeSheet();
+  });
+
+  $('btnRule').addEventListener('click', openRule);
+  $('btnRuleStart').addEventListener('click', openRule);
+  $('ruleClose').addEventListener('click', closeRule);
+  $('ruleSheet').addEventListener('click', function(e){
+    if (e.target === $('ruleSheet')) closeRule();
+  });
+
+  /* ---------- 出字 ---------- */
+  var recent = [];
+  function drawWord(){
+    var item;
+    for (var tries = 0; tries < 30; tries++){
+      item = BANK[Math.floor(Math.random() * BANK.length)];
+      if (recent.indexOf(item[0]) < 0) break;
+    }
+    recent.push(item[0]);
+    if (recent.length > 12) recent.shift();
+    return { c: item[0], k: item[1], hinted: false, done: false };
+  }
+
+  /* ---------- 渲染 ---------- */
+  function renderBoard(){
+    var frag = document.createDocumentFragment();
+    for (var i = 0; i < G.slots.length; i++){
+      var s = G.slots[i];
+      var d = document.createElement('div');
+      d.className = 'slot' + (i === G.focus ? ' focus' : '') ;
+      d.setAttribute('data-i', i);
+
+      var ch = document.createElement('div');
+      ch.className = 'slot-char';
+      ch.textContent = s.c;
+      if (s.done) ch.classList.add('hit');
+
+      var codeRow = document.createElement('div');
+      codeRow.className = 'slot-code';
+      for (var p = 0; p < s.k.length; p++){
+        var chip = document.createElement('i');
+        chip.className = 'chip' + (i === G.focus && p < G.input.length ? ' on' : '');
+        chip.textContent = s.k[p].toUpperCase();
+        codeRow.appendChild(chip);
+      }
+
+      var badge = document.createElement('span');
+      badge.className = 'slot-badge';
+      badge.textContent = '提示';
+
+      d.appendChild(ch);
+      d.appendChild(codeRow);
+      d.appendChild(badge);
+
+      (function(idx){
+        d.addEventListener('click', function(){
+          if (G.phase === 'PLAYING'){ G.focus = idx; G.input = ''; renderBoard(); renderTip(); }
+        });
+      })(i);
+
+      frag.appendChild(d);
+    }
+    elBoard.innerHTML = '';
+    elBoard.appendChild(frag);
+  }
+
+  function esc(s){
+    return String(s).replace(/[&<>"]/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c];
+    });
+  }
+
+  function renderTip(){
+    var s = G.slots[G.focus];
+    if (!s){ elTip.innerHTML = ''; return; }
+    var pos = G.input.length;
+    if (pos >= s.k.length){
+      elTip.innerHTML = '<span class="tip-sub">完成</span>';
+      return;
+    }
+    var L = s.k[pos].toUpperCase();
+    var info = KEYMAP[L];
+    elTip.innerHTML =
+      '<span class="tip-key"><b>' + L + ' 键</b> · ' + info[1] + '　第 ' + (pos + 1) + ' 个字母</span>' +
+      '<span class="tip-mn">' + info[4] + '</span>';
+  }
+
+  function renderHud(){
+    elScore.textContent = String(G.score);
+    elCombo.textContent = G.combo > 1 ? '×' + G.combo : '—';
+    var sec = Math.ceil(Math.max(0, G.timeLeft) / 1000);
+    elTime.textContent = String(sec);
+    elTime.classList.toggle('low', G.timeLeft <= 15000);
+  }
+
+  function flashKey(letter, cls){
+    var el = elKeys.querySelector('[data-k="' + letter + '"]');
+    if (!el) return;
+    el.classList.remove('ok', 'bad', 'hint');
+    void el.offsetWidth;
+    el.classList.add(cls);
+    if (cls !== 'ok'){
+      setTimeout(function(){ el.classList.remove(cls); }, cls === 'bad' ? 500 : 1500);
+    }
+  }
+
+  function clearKeyStates(){
+    var all = elKeys.querySelectorAll('.key');
+    for (var i = 0; i < all.length; i++) all[i].classList.remove('ok', 'bad', 'hint');
+  }
+
+  /* ---------- 输入 ---------- */
+  function press(letter){
+    if (G.phase !== 'PLAYING') return;
+    var s = G.slots[G.focus];
+    if (!s || s.done) return;
+
+    var code = s.k;
+    var pos = G.input.length;
+    var L = String(letter).toLowerCase();
+    var UP = String(letter).toUpperCase();
+
+    if (L === code[pos]){
+      G.input += L;
+      flashKey(UP, 'ok');
+      if (G.input.length === code.length){
+        completeSlot();
+      } else {
+        renderBoard();
+        renderTip();
+      }
+    } else {
+      G.misses++;
+      flashKey(UP, 'bad');
+      flashKey(code[pos].toUpperCase(), 'hint');
+      var node = elBoard.querySelector('.slot[data-i="' + G.focus + '"] .slot-char');
+      if (node){
+        node.classList.remove('bad');
+        void node.offsetWidth;
+        node.classList.add('bad');
+      }
+      var kk = KEYMAP[code[pos].toUpperCase()];
+      elTip.innerHTML =
+        '<span class="tip-key">不是这个键，应该按 <b>' + kk[0].toUpperCase() + ' 键</b></span>' +
+        '<span class="tip-mn warn">' + kk[4] + '</span>';
+      setTimeout(function(){
+        if (G.phase === 'PLAYING') renderTip();
+      }, 1200);
+    }
+  }
+
+  function completeSlot(){
+    var s = G.slots[G.focus];
+    s.done = true;
+    G.cleared++;
+    G.combo++;
+    if (G.combo > G.bestCombo) G.bestCombo = G.combo;
+
+    var gain = CFG.SCORE_HIT;
+    if (G.combo % 5 === 0) gain += CFG.COMBO_BONUS;
+    G.score += gain;
+
+    renderBoard();
+    renderHud();
+    elTip.innerHTML = '<span class="tip-key">消掉</span><span class="tip-mn">+' + gain + '　' +
+      esc(s.c) + ' → ' + s.k.toUpperCase() + '</span>';
+
+    var idx = G.focus;
+    setTimeout(function(){
+      if (G.phase !== 'PLAYING') return;
+      G.slots[idx] = drawWord();
+      G.input = '';
+      // 焦点移到下一个未完成的
+      var next = -1;
+      for (var i = 0; i < G.slots.length; i++){
+        var j = (idx + 1 + i) % G.slots.length;
+        if (!G.slots[j].done){ next = j; break; }
+      }
+      G.focus = next >= 0 ? next : 0;
+      clearKeyStates();
+      renderBoard();
+      renderTip();
+    }, 340);
+  }
+
+  /* ---------- 换一个字 ---------- */
+  $('btnSkip').addEventListener('click', function(){
+    if (G.phase !== 'PLAYING') return;
+    var s = G.slots[G.focus];
+    if (!s || s.done) return;
+    G.slots[G.focus] = drawWord();
+    G.input = '';
+    clearKeyStates();
+    renderBoard();
+    renderTip();
+  });
+
+  /* ---------- 计时 ---------- */
+  function loop(t){
+    if (G.phase !== 'PLAYING') return;
+    if (!lastT) lastT = t;
+    var dt = t - lastT; lastT = t;
+    if (dt > 220) dt = 220;
+    G.timeLeft -= dt;
+    if (G.timeLeft <= 0){ G.timeLeft = 0; renderHud(); endGame(); return; }
+    renderHud();
+    rafId = requestAnimationFrame(loop);
+  }
+
+  /* ---------- 流程 ---------- */
+  function startGame(){
+    G.score = 0; G.combo = 0; G.bestCombo = 0;
+    G.timeLeft = CFG.DURATION;
+    G.cleared = 0; G.misses = 0; G.hintedCount = 0;
+    G.input = ''; G.focus = 0;
+    G.slots = [];
+    for (var i = 0; i < CFG.SLOTS; i++) G.slots.push(drawWord());
+    G.phase = 'PLAYING';
+
+    ovStart.classList.add('hidden');
+    ovEnd.classList.add('hidden');
+    clearKeyStates();
+    renderBoard();
+    renderHud();
+    renderTip();
+
+    lastT = 0;
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(loop);
+  }
+
+  function endGame(){
+    if (G.phase !== 'PLAYING') return;
+    G.phase = 'ENDED';
+    if (rafId){ cancelAnimationFrame(rafId); rafId = 0; }
+
+    $('endScore').textContent = String(G.score);
+    $('endStats').innerHTML =
+      '消掉 <b>' + G.cleared + '</b> 个字　最高连击 <b>' + G.bestCombo + '</b><br>' +
+      '按错 <b>' + G.misses + '</b> 次　平均每个字 <b>' +
+      (G.cleared ? (G.misses / G.cleared).toFixed(1) : '0') + '</b> 次错';
+
+    ovEnd.classList.remove('hidden');
+    closeSheet();
+    closeRule();
+  }
+
+  $('btnStart').addEventListener('click', startGame);
+  $('btnAgain').addEventListener('click', function(){
+    ovEnd.classList.add('hidden');
+    startGame();
+  });
+  $('btnHome').addEventListener('click', function(){
+    ovEnd.classList.add('hidden');
+    ovStart.classList.remove('hidden');
+  });
+
+  document.addEventListener('keydown', function(e){
+    if (G.phase !== 'PLAYING') return;
+    var k = e.key.toUpperCase();
+    if (!/^[A-Y]$/.test(k) || k === 'Z') return;
+    if (KEYMAP[k]){ press(k); e.preventDefault(); }
+  });
+
+  renderHud();
+})();
+</script>
+</body>
+</html>
