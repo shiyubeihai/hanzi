@@ -6,14 +6,14 @@
 
 ## 在线访问
 
-<https://你的用户名.github.io/hanzi/>
+<https://shiyubeihai.github.io/hanzi/>
 
 ## 包含
 
 | 工具 | 路径 | 说明 |
 |---|---|---|
-| 五笔消消乐 | [`wubi_typing/`](./wubi_typing/) | 630 个一级 / 二级简码字。屏幕上出三个字，按出编码就能消掉，边打边复习字根口诀 |
 | 汉字拼音配对 | [`hanzi_match/`](./hanzi_match/) | 2264 条（1000 常用词 + 58 多音词 + 1150 单字 + 56 易读错地名），覆盖 1504 个汉字。单字卡带释义，左字右音，点两边配对 |
+| 五笔消消乐 | [`wubi_typing/`](./wubi_typing/) | 630 个一级 / 二级简码字。屏幕上出三个字，按出编码就能消掉，边打边复习字根口诀 |
 
 ## 特点
 
@@ -21,23 +21,4 @@
 - 每个工具都是单文件 HTML，无外部依赖，下载下来也能离线用
 - 手机、平板、电脑通用
 
-## 目录结构
 
-```
-hanzi/
-├── index.html        大厅页
-├── wubi_typing/
-│   └── index.html    五笔消消乐
-├── hanzi_match/
-│   └── index.html    汉字拼音配对
-├── .nojekyll         关闭 GitHub Pages 的 Jekyll 处理
-└── .gitignore
-```
-
-## 添加新工具
-
-1. 新建文件夹，把单文件游戏放进去，命名为 `index.html`
-2. 在根目录 `index.html` 的 `<main>` 里复制一张 `.card`，改 `href`、标题、描述、标签。**汉字拼音配对固定排第一，新卡片加在它下面**
-3. 推送
-
-文件夹名用英文小写加连字符（如 `char-cards`）。GitHub Pages 区分大小写，路径名不要用中文和空格。
