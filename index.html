@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f4f1ea">
-<title>汉字</title>
+<title>汉字8105</title>
 <style>
   :root{
     --bg:#f4f1ea;
@@ -29,13 +29,26 @@
   header{ margin-bottom:32px; }
   h1{
     font-family:"Songti SC","SimSun","STSong",serif;
-    font-size:34px; font-weight:700; letter-spacing:.22em;
+    font-size:34px; font-weight:700; letter-spacing:.2em;
     color:var(--ink);
+    display:flex; align-items:baseline; gap:.1em;
+  }
+  h1 .num{
+    font-family:"SF Mono",Menlo,Consolas,monospace;
+    font-size:.6em; font-weight:700;
+    letter-spacing:.02em;
+    color:var(--gold);
   }
   .sub{
     font-size:11.5px; letter-spacing:.3em;
     color:var(--ink-soft); margin-top:9px;
   }
+  .origin{
+    font-size:11px; line-height:1.7;
+    color:#b3aa9c; letter-spacing:.03em;
+    margin-top:12px;
+  }
+  .origin b{ color:#9a8f7e; font-weight:600; letter-spacing:.02em; }
   .rule{
     height:1px; background:var(--line);
     margin-top:22px;
@@ -95,12 +108,28 @@
 <body>
 <div class="wrap">
   <header>
-    <h1>汉字</h1>
+    <h1>汉字<span class="num">8105</span></h1>
     <div class="sub">认字 · 拆字 · 写字</div>
+    <div class="origin">
+      <b>8105</b> 是《通用规范汉字表》的收字总数：一级 3500 · 二级 3000 · 三级 1605。<br>
+      该表由国务院于 2013 年发布，是现行汉字使用规范。
+    </div>
     <div class="rule"></div>
   </header>
 
   <main>
+    <!-- 汉字拼音配对固定置顶，新游戏一律加在它下面 -->
+    <a class="card" href="./hanzi_match/">
+      <div class="card-go">进入 →</div>
+      <div class="card-title">汉字拼音配对</div>
+      <div class="card-desc">左边出字词，右边出拼音，点两边配对，配对成功会牵一条线，并显示读音说明。分全部 / 词语 / 单字 / 地名四种模式，单字卡带字典释义。</div>
+      <div class="card-tags">
+        <span class="tag">2264 条</span>
+        <span class="tag">1504 个汉字</span>
+        <span class="tag">带调号</span>
+      </div>
+    </a>
+
     <a class="card" href="./wubi_typing/">
       <div class="card-go">进入 →</div>
       <div class="card-title">五笔消消乐</div>

@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#F7F3EA">
+<title>汉字拼音配对</title>
+<style>
+  :root{
+    --bg:#F7F3EA; --panel:#FFFDF8; --line:#E7DFD2; --ink:#2C2A26; --muted:#8C8577;
+
+    /* 朱砂 · 藤黄（词语） */
+    --zhu:#C0392B; --zhu-soft:#FBEBE7; --zhu-line:#EFC9C1; --zhu-shadow:rgba(192,57,43,.20);
+    --teng:#D8A11C; --teng-ink:#8A6A16;
+
+    /* 松绿 · 墨（单字） */
+    --green:#2E8B57; --green-soft:#F1F8F3; --green-line:#B7D8C2; --green-shadow:rgba(46,139,87,.20);
+    --mo:#23262B; --mo-ink:#4A4F57;
+
+    /* 天青 · 石青（地名） */
+    --tian:#4A8FA8; --tian-soft:#E9F3F5; --tian-line:#C0DBE1; --tian-shadow:rgba(74,143,168,.22);
+    --shiqing:#7FA9B5; --shiqing-ink:#4A6E78;
+
+    --gold:#A97A1F;
+
+    --accent:var(--green); --accent-soft:var(--green-soft);
+    --accent-line:var(--green-line); --accent-shadow:var(--green-shadow);
+    --accent2:var(--gold); --accent2-ink:#6F5417;
+  }
+  body[data-mode="all"], body[data-mode="w"]{
+    --bg:#FBF3EC;
+    --accent:var(--zhu); --accent-soft:var(--zhu-soft);
+    --accent-line:var(--zhu-line); --accent-shadow:var(--zhu-shadow);
+    --accent2:var(--teng); --accent2-ink:var(--teng-ink);
+  }
+  body[data-mode="s"]{
+    --bg:#F7F3EA;
+    --accent:var(--green); --accent-soft:var(--green-soft);
+    --accent-line:var(--green-line); --accent-shadow:var(--green-shadow);
+    --accent2:var(--mo); --accent2-ink:var(--mo-ink);
+  }
+  body[data-mode="p"]{
+    --bg:#F2F7F8;
+    --accent:var(--tian); --accent-soft:var(--tian-soft);
+    --accent-line:var(--tian-line); --accent-shadow:var(--tian-shadow);
+    --accent2:var(--shiqing); --accent2-ink:var(--shiqing-ink);
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:radial-gradient(900px 500px at 50% -10%, #FFFDF7 0%, var(--bg) 60%);
+    color:var(--ink);
+    font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+    min-height:100vh;
+    padding:max(14px, env(safe-area-inset-top)) 12px max(22px, env(safe-area-inset-bottom));
+    -webkit-tap-highlight-color:transparent;
+    -webkit-user-select:none; user-select:none;
+    transition:background .3s ease;
+  }
+  .wrap{ max-width:620px; margin:0 auto; }
+
+  /* ---------- 头部 ---------- */
+  header{ display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:10px; }
+  h1{
+    font-family:"Songti SC","SimSun","STSong",serif;
+    font-size:18px; margin:0; color:var(--accent); letter-spacing:.5px;
+    flex:1 1 auto; min-width:0; transition:color .3s ease;
+  }
+  h1 span{ font-size:11px; color:var(--muted); font-weight:400; margin-left:6px; letter-spacing:.06em; }
+  h1 b{ font-weight:700; color:var(--muted); font-variant-numeric:tabular-nums; }
+
+  .modes{ display:flex; gap:6px; flex:1 1 auto; flex-wrap:wrap; }
+  .mode{
+    border:1px solid var(--line); background:var(--panel); color:var(--muted);
+    border-radius:999px; padding:6px 12px; font-size:12.5px; font-weight:600;
+    cursor:pointer; font-family:inherit; transition:background .15s, color .15s, border-color .15s;
+  }
+  .mode:hover{ background:#F6F1E7; }
+  .mode.on{ background:var(--accent); border-color:var(--accent); color:#fff; }
+
+  .cal-btn{
+    width:32px; height:32px; flex:none;
+    display:inline-flex; align-items:center; justify-content:center;
+    border:1px solid var(--line); background:var(--panel); color:var(--accent);
+    border-radius:9px; cursor:pointer; padding:0; font-family:inherit;
+    box-shadow:0 2px 6px rgba(120,100,60,.06);
+    transition:background .12s, border-color .12s, transform .12s;
+  }
+  .cal-btn:hover{ background:var(--accent-soft); border-color:var(--accent-line); }
+  .cal-btn:active{ transform:scale(.96); }
+  .cal-btn svg{
+    width:18px; height:18px; display:block;
+    fill:none; stroke:currentColor; stroke-width:1.9;
+    stroke-linecap:round; stroke-linejoin:round;
+  }
+
+  .stats{
+    display:flex; flex-wrap:wrap; justify-content:space-between;
+    gap:6px 14px; font-size:11.5px; color:var(--muted);
+    flex:1 1 100%; max-width:100%;
+  }
+  .stats b{ color:var(--ink); font-size:14px; margin-left:4px; font-variant-numeric:tabular-nums; font-weight:700; }
+  #score{ color:var(--accent); }
+  #combo{ color:var(--gold); }
+
+  .hint{
+    font-size:12px; color:var(--muted); margin:4px 0 10px; min-height:18px; letter-spacing:.02em;
+  }
+  .hint b{ color:var(--accent); }
+  .hint .warn{ color:var(--red); }
+  .hint .gold{ color:var(--gold); }
+
+  /* ---------- 棋盘 ---------- */
+  .board{
+    position:relative; display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    gap:8px clamp(16px, 5vw, 30px); padding:4px 0;
+  }
+  #lines{ position:absolute; inset:0; width:100%; height:100%; pointer-events:none; overflow:visible; z-index:5; }
+  .col{ display:flex; flex-direction:column; gap:8px; min-width:0; }
+
+  /* ---------- 卡片 ---------- */
+  .tile{
+    width:100%; min-height:46px; display:flex; align-items:center; gap:8px;
+    padding:6px 10px; border-radius:12px; cursor:pointer;
+    background:var(--panel); border:1px solid var(--line); border-left-width:3px;
+    font-family:inherit; color:var(--ink); text-align:left; min-width:0;
+    overflow-wrap:anywhere; position:relative;
+    transition:transform .12s, box-shadow .12s, border-color .12s, background .12s, opacity .2s;
+    box-shadow:0 2px 6px rgba(120,100,60,.05);
+  }
+  .tile:active{ transform:scale(.985); }
+
+  .tile.zh{ border-left-color:var(--accent); }
+  .tile.py{ border-left-color:var(--accent2); }
+
+  .tile .word{ flex:1 1 auto; min-width:0; line-height:1.2; }
+  .tile.zh .word{
+    font-family:"Songti SC","SimSun","STSong",serif;
+    font-size:clamp(16px,4.2vw,19px); font-weight:600; letter-spacing:.06em;
+  }
+  .tile.py .word{
+    font-size:clamp(13px,3.6vw,15px); font-weight:500; letter-spacing:.02em; color:var(--accent2-ink);
+  }
+
+  .tag{
+    flex:none; font-size:9px; font-weight:700; line-height:1.5; letter-spacing:.04em;
+    padding:1px 5px; border-radius:999px; color:#fff; background:#C7A877;
+  }
+  .tag.p{ background:var(--tian); }
+  .tag.s{ background:var(--green); }
+  .tag.d{ background:#5B4A6B; }
+
+  /* 状态 */
+  .tile.sel{
+    border-color:var(--accent); background:var(--accent-soft);
+    box-shadow:0 0 0 3px var(--accent-shadow);
+  }
+  .tile.sel .word{ color:var(--accent); }
+
+  .tile.ok{ border-color:var(--green); background:var(--green-soft); }
+  .tile.ok .word{ color:var(--green); }
+
+  .tile.bad{ animation:shake .35s; border-color:var(--red); background:#FDF1EF; }
+  .tile.bad .word{ color:var(--red); }
+  @keyframes shake{
+    0%,100%{ transform:translateX(0); }
+    20%{ transform:translateX(-5px); }
+    40%{ transform:translateX(5px); }
+    60%{ transform:translateX(-3px); }
+    80%{ transform:translateX(2px); }
+  }
+
+  /* 配对后留在原位，只变淡，避免整列跳动 */
+  .tile.matched{
+    background:#F2EFE8; border-color:#EAE4D8; border-left-color:#DCD5C7;
+    box-shadow:none; pointer-events:none;
+  }
+  .tile.matched .word{ color:#D3CBBE; }
+  .tile.matched .tag{ opacity:.35; }
+
+  /* 连线 */
+  .link-halo{
+    fill:none; stroke:var(--accent); stroke-opacity:.18; stroke-width:11; stroke-linecap:round;
+    stroke-dasharray:100; stroke-dashoffset:100;
+    animation:drawLink .40s ease forwards, fadeOut .30s ease .46s forwards;
+  }
+  .link{
+    fill:none; stroke:var(--accent); stroke-width:2.6; stroke-linecap:round;
+    stroke-dasharray:100; stroke-dashoffset:100;
+    animation:drawLink .40s ease forwards, fadeOut .30s ease .46s forwards;
+  }
+  .link-dot{
+    fill:var(--accent); opacity:0;
+    animation:dotIn .18s ease .08s forwards, fadeOut .30s ease .46s forwards;
+  }
+  @keyframes drawLink{ to{ stroke-dashoffset:0; } }
+  @keyframes dotIn{ to{ opacity:1; } }
+  @keyframes fadeOut{ to{ opacity:0; } }
+
+  /* ---------- 信息面板 ---------- */
+  .example{
+    margin:12px 0 0; min-height:56px; padding:9px 12px;
+    border-radius:12px; background:var(--accent-soft); border:1px solid var(--accent-line);
+    display:flex; align-items:center; gap:10px;
+    transition:background .3s ease, border-color .3s ease;
+  }
+  .example .ex-main{ flex:1 1 auto; min-width:0; }
+  .example .ex-word{
+    font-size:13px; font-weight:700; color:var(--accent); line-height:1.45;
+    font-family:"Songti SC","SimSun","STSong",serif; letter-spacing:.04em;
+  }
+  .example .ex-word .py{
+    font-family:"PingFang SC","Helvetica Neue",system-ui,sans-serif;
+    font-size:12px; font-weight:500; color:#6B7C6F; margin-left:8px; letter-spacing:.02em;
+  }
+  .example .ex-word.empty{ font-family:inherit; font-size:12.5px; font-weight:500; color:#A39A8A; letter-spacing:.02em; }
+  .example .ex-text{ font-size:11.5px; color:#6B6357; line-height:1.55; margin-top:2px; }
+  .example .ex-text:empty{ display:none; }
+  .example .ex-say{
+    flex:none; border:1px solid var(--accent-line); background:#FFFDF8; color:var(--accent);
+    border-radius:8px; padding:6px 10px; font-size:12px; cursor:pointer; font-family:inherit;
+    font-weight:600;
+  }
+  .example .ex-say:hover{ background:#F4EEDF; }
+
+  /* ---------- 底部 ---------- */
+  .bar{
+    margin:12px 0 0;
+    display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+  }
+  .progress{ font-size:12px; color:var(--muted); letter-spacing:.02em; }
+  .progress b{ color:var(--accent); }
+  .restart{
+    border:1px solid var(--line); background:var(--panel); color:var(--ink);
+    border-radius:10px; padding:7px 13px; font-size:12.5px; font-weight:600;
+    cursor:pointer; font-family:inherit;
+  }
+  .restart:hover{ background:#F4EEDF; }
+
+  .foot{
+    margin:10px 0 0;
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  }
+  .chip{
+    border:1px solid var(--line); background:var(--panel); color:var(--muted);
+    border-radius:999px; padding:5px 11px; font-size:12px; cursor:pointer;
+    font-family:inherit; font-weight:600;
+  }
+  .chip.on{ color:var(--accent); border-color:var(--accent-line); background:var(--accent-soft); }
+  .foot-note{ font-size:11px; color:var(--muted); letter-spacing:.02em; }
+
+  /* ---------- 练习日历 ---------- */
+  .cal-overlay{
+    position:fixed; inset:0; z-index:30;
+    display:none; align-items:center; justify-content:center;
+    padding:18px; background:rgba(43,37,25,.46);
+  }
+  .cal-overlay.show{ display:flex; }
+  .cal-modal{
+    width:min(100%,420px); max-height:92vh; overflow:auto;
+    background:var(--panel); border:1px solid var(--line); border-radius:20px;
+    padding:14px 14px 12px; box-shadow:0 20px 60px rgba(40,30,10,.28);
+    text-align:left;
+  }
+  .cal-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+  .cal-head h2{ margin:0; font-size:17px; color:var(--accent); letter-spacing:.3px; }
+  .cal-head p{ margin:3px 0 0; font-size:11px; color:var(--muted); line-height:1.45; }
+  .cal-x{
+    border:none; background:transparent; color:var(--muted);
+    font-size:22px; line-height:1; cursor:pointer; padding:2px 6px; border-radius:8px;
+  }
+  .cal-x:hover{ background:var(--accent-soft); }
+
+  .cal-nav{ display:flex; align-items:center; gap:6px; margin:10px 0 9px; }
+  .cal-nav button{
+    border:1px solid var(--line); background:var(--panel); color:var(--muted);
+    border-radius:8px; font-family:inherit; cursor:pointer;
+  }
+  .cal-nav button:hover{ background:var(--accent-soft); color:var(--accent); }
+  .cal-prev,.cal-next{ width:30px; height:30px; font-size:18px; line-height:1; padding:0; }
+  .cal-month{ flex:1; text-align:center; font-size:14px; font-weight:700; color:var(--accent); }
+  .cal-today{
+    height:30px; padding:0 9px; font-size:11.5px; font-weight:700;
+    color:var(--accent); border-color:var(--accent-line)!important;
+    background:var(--accent-soft)!important;
+  }
+
+  .cal-week{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:4px; }
+  .cal-week span{ text-align:center; font-size:10px; color:var(--muted); }
+  .cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+  .cal-day{
+    min-width:0; min-height:48px; padding:4px 2px 3px;
+    display:flex; flex-direction:column; align-items:center; justify-content:flex-start;
+    border:1px solid var(--line); border-radius:9px;
+    background:var(--panel); color:var(--ink);
+    font-family:inherit; cursor:default; position:relative;
+  }
+  .cal-day.blank{ background:transparent; border-color:transparent; }
+  .cal-day .num{
+    font-size:12px; line-height:1.2; font-variant-numeric:tabular-nums; font-weight:600;
+  }
+  .cal-day .cnt{
+    margin-top:2px; font-size:9px; line-height:1.2; color:#fff;
+    background:var(--accent); border-radius:999px; padding:0 5px; min-width:18px;
+    text-align:center; opacity:0;
+  }
+  .cal-day.did .cnt{ opacity:1; }
+  .cal-day.did{ background:var(--accent-soft); border-color:var(--accent-line); }
+  .cal-day.today{ border-color:var(--accent); border-width:1.5px; }
+  .cal-day.future{ color:#C6BFB2; }
+
+  .cal-sum{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:10px;
+    padding-top:10px; border-top:1px solid var(--line);
+  }
+  .cal-sum div{
+    padding:8px 10px; border-radius:10px; background:#FBF7EE; border:1px solid var(--line);
+    display:flex; flex-direction:column; gap:2px;
+  }
+  .cal-sum span{ font-size:10px; color:var(--muted); }
+  .cal-sum b{ font-size:14px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
+
+  @media (max-width:420px){
+    .cal-modal{ border-radius:16px; padding:12px 10px 10px; }
+    .cal-day{ min-height:44px; }
+  }
+
+  @media (max-width:420px){
+    body{ padding:10px 9px 18px; }
+    h1{ font-size:17px; }
+    .tile{ min-height:44px; padding:5px 9px; }
+    .board{ gap:7px 16px; }
+    .col{ gap:7px; }
+    .mode{ padding:6px 11px; font-size:12px; }
+    .example{ margin-top:10px; }
+    .bar{ margin-top:10px; }
+  }
+</style>
+</head>
+<body data-mode="all">
+<div class="wrap">
+
+  <header>
+    <h1>汉字拼音配对 <span>共 <b id="poolCount">0</b> 条 · <b id="charCount">0</b> 个汉字</span></h1>
+    <button class="cal-btn" id="calBtn" type="button" aria-label="练习日历" title="练习日历">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="5" width="18" height="16" rx="2"></rect>
+        <path d="M7 3v4M17 3v4M3 10h18"></path>
+        <path d="M8 14h2M14 14h2M8 18h2M14 18h2"></path>
+      </svg>
+    </button>
+    <div class="modes" id="modes">
+      <button class="mode on" data-mode="all" type="button">全部</button>
+      <button class="mode" data-mode="w" type="button">词语</button>
+      <button class="mode" data-mode="s" type="button">单字</button>
+      <button class="mode" data-mode="p" type="button">地名</button>
+    </div>
+    <div class="stats">
+      <div>得分<b id="score">0</b></div>
+      <div>连击<b id="combo">0</b></div>
+      <div>正确率<b id="acc">—</b></div>
+    </div>
+  </header>
+
+  <div class="hint" id="hint">点左边的汉字，再点右边对应的拼音。标「地名」的是容易读错的地名。</div>
+
+  <div class="board" id="board">
+    <svg id="lines" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div class="col" id="colL"></div>
+    <div class="col" id="colR"></div>
+  </div>
+
+  <div class="example" id="example">
+    <div class="ex-main">
+      <div class="ex-word empty" id="exWord">配对成功后会显示读音说明</div>
+      <div class="ex-text" id="exText"></div>
+    </div>
+    <button class="ex-say" id="exSay" type="button" hidden>🔊 朗读</button>
+  </div>
+
+  <div class="bar">
+    <div class="progress">本组 <b id="matchedN">0</b> / <span id="totalN">6</span> · 第 <b id="roundN">1</b> 组</div>
+    <button class="restart" id="btnRestart" type="button">重新开始</button>
+  </div>
+
+  <div class="foot">
+    <button class="chip on" id="ttsToggle" type="button">🔊 发音开</button>
+    <span class="foot-note">配对成功会读一遍 · 手机会用系统语音</span>
+  </div>
+
+</div>
+
+<div class="cal-overlay" id="calOverlay">
+  <div class="cal-modal" role="dialog" aria-modal="true" aria-labelledby="calTitle">
+    <div class="cal-head">
+      <div>
+        <h2 id="calTitle">练习日历</h2>
+        <p>格子里的小数字是当天配对成功的数量</p>
+      </div>
+      <button class="cal-x" id="calClose" type="button" aria-label="关闭">×</button>
+    </div>
+    <div class="cal-nav">
+      <button class="cal-prev" id="calPrev" type="button" aria-label="上个月">‹</button>
+      <div class="cal-month" id="calMonth"></div>
+      <button class="cal-next" id="calNext" type="button" aria-label="下个月">›</button>
+      <button class="cal-today" id="calToday" type="button">今天</button>
+    </div>
+    <div class="cal-week">
+      <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+    <div class="cal-sum">
+      <div><span>今日</span><b id="calTodayN">0</b></div>
+      <div><span>本月</span><b id="calMonthN">0</b></div>
+      <div><span>连续</span><b id="calStreak">0 天</b></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  var WORDS=[["一个","yī ge","w"],["中国","zhōng guó","w"],["我们","wǒ men","w"],["他们","tā men","w"],["自己","zì jǐ","w"],["没有","méi yǒu","w"],["国家","guó jiā","w"],["可以","kě yǐ","w"],["发展","fā zhǎn","w"],["工作","gōng zuò","w"],["这个","zhè ge","w"],["什么","shén me","w"],["主要","zhǔ yào","w"],["问题","wèn tí","w"],["进行","jìn xíng","w"],["地方","dì fāng","w"],["已经","yǐ jīng","w"],["这样","zhè yàng","w"],["全国","quán guó","w"],["经济","jīng jì","w"],["这些","zhè xiē","w"],["不是","bù shì","w"],["公司","gōng sī","w"],["人民","rén mín","w"],["社会","shè huì","w"],["知道","zhī dào","w"],["这种","zhè zhǒng","w"],["起来","qǐ lai","w"],["地区","dì qū","w"],["如果","rú guǒ","w"],["开始","kāi shǐ","w"],["技术","jì shù","w"],["重要","zhòng yào","w"],["美国","měi guó","w"],["成为","chéng wéi","w"],["因为","yīn wèi","w"],["通过","tōng guò","w"],["研究","yán jiū","w"],["文化","wén huà","w"],["企业","qǐ yè","w"],["北京","běi jīng","w"],["历史","lì shǐ","w"],["世界","shì jiè","w"],["其中","qí zhōng","w"],["现在","xiàn zài","w"],["不能","bù néng","w"],["一些","yī xiē","w"],["时间","shí jiān","w"],["生产","shēng chǎn","w"],["情况","qíng kuàng","w"],["代表","dài biǎo","w"],["决定","jué dìng","w"],["湖北","hú běi","w"],["关系","guān xi","w"],["领导","lǐng dǎo","w"],["生活","shēng huó","w"],["时候","shí hou","w"],["一种","yī zhǒng","w"],["可能","kě néng","w"],["出来","chū lái","w"],["学生","xué sheng","w"],["以及","yǐ jí","w"],["石首","shí shǒu","w"],["一般","yī bān","w"],["同时","tóng shí","w"],["认为","rèn wéi","w"],["由于","yóu yú","w"],["所以","suǒ yǐ","w"],["不同","bù tóng","w"],["这里","zhè lǐ","w"],["学院","xué yuàn","w"],["作为","zuò wéi","w"],["会议","huì yì","w"],["但是","dàn shì","w"],["部分","bù fen","w"],["活动","huó dòng","w"],["需要","xū yào","w"],["怎么","zěn me","w"],["管理","guǎn lǐ","w"],["方面","fāng miàn","w"],["市场","shì chǎng","w"],["组织","zǔ zhī","w"],["工业","gōng yè","w"],["建设","jiàn shè","w"],["形成","xíng chéng","w"],["其他","qí tā","w"],["出现","chū xiàn","w"],["许多","xǔ duō","w"],["日本","rì běn","w"],["之间","zhī jiān","w"],["一定","yī dìng","w"],["具有","jù yǒu","w"],["城市","chéng shì","w"],["以上","yǐ shàng","w"],["政治","zhèng zhì","w"],["人们","rén men","w"],["发现","fā xiàn","w"],["记者","jì zhě","w"],["国际","guó jì","w"],["规定","guī dìng","w"],["机关","jī guān","w"],["武汉","wǔ hàn","w"],["虽然","suī rán","w"],["根据","gēn jù","w"],["法律","fǎ lǜ","w"],["影响","yǐng xiǎng","w"],["包括","bāo kuò","w"],["发生","fā shēng","w"],["使用","shǐ yòng","w"],["中心","zhōng xīn","w"],["教育","jiào yù","w"],["要求","yāo qiú","w"],["政府","zhèng fǔ","w"],["因此","yīn cǐ","w"],["人口","rén kǒu","w"],["建立","jiàn lì","w"],["参加","cān jiā","w"],["产品","chǎn pǐn","w"],["而且","ér qiě","w"],["一样","yī yàng","w"],["面积","miàn jī","w"],["各种","gè zhǒng","w"],["提出","tí chū","w"],["我国","wǒ guó","w"],["作用","zuò yòng","w"],["皇帝","huáng dì","w"],["必须","bì xū","w"],["行政","xíng zhèng","w"],["编辑","biān jí","w"],["职业","zhí yè","w"],["制度","zhì dù","w"],["以后","yǐ hòu","w"],["你们","nǐ men","w"],["说道","shuō dào","w"],["世纪","shì jì","w"],["为了","wèi le","w"],["应该","yīng gāi","w"],["之一","zhī yī","w"],["之后","zhī hòu","w"],["主席","zhǔ xí","w"],["系统","xì tǒng","w"],["有关","yǒu guān","w"],["组成","zǔ chéng","w"],["民族","mín zú","w"],["基本","jī běn","w"],["增长","zēng zhǎng","w"],["自然","zì rán","w"],["大学","dà xué","w"],["如何","rú hé","w"],["政体","zhèng tǐ","w"],["各级","gè jí","w"],["人员","rén yuán","w"],["计划","jì huà","w"],["不会","bù huì","w"],["产生","chǎn shēng","w"],["时期","shí qī","w"],["最后","zuì hòu","w"],["一次","yī cì","w"],["表示","biǎo shì","w"],["机构","jī gòu","w"],["当时","dāng shí","w"],["大家","dà jiā","w"],["特别","tè bié","w"],["改革","gǎi gé","w"],["长江","cháng jiāng","w"],["那么","nà me","w"],["这么","zhè me","w"],["东西","dōng xī","w"],["能力","néng lì","w"],["革命","gé mìng","w"],["一直","yī zhí","w"],["基础","jī chǔ","w"],["还有","hái yǒu","w"],["得到","dé dào","w"],["进入","jìn rù","w"],["运动","yùn dòng","w"],["目前","mù qián","w"],["对于","duì yú","w"],["过程","guò chéng","w"],["方法","fāng fǎ","w"],["举行","jǔ xíng","w"],["群众","qún zhòng","w"],["第一","dì yī","w"],["单位","dān wèi","w"],["如此","rú cǐ","w"],["孩子","hái zi","w"],["所有","suǒ yǒu","w"],["资源","zī yuán","w"],["过去","guò qù","w"],["不过","bù guò","w"],["条件","tiáo jiàn","w"],["学校","xué xiào","w"],["提高","tí gāo","w"],["工程","gōng chéng","w"],["环境","huán jìng","w"],["提供","tí gōng","w"],["方式","fāng shì","w"],["百科","bǎi kē","w"],["报告","bào gào","w"],["或者","huò zhě","w"],["下来","xià lai","w"],["军事","jūn shì","w"],["部门","bù mén","w"],["分别","fēn bié","w"],["十分","shí fēn","w"],["上海","shàng hǎi","w"],["完成","wán chéng","w"],["一切","yī qiè","w"],["那些","nà xiē","w"],["然后","rán hòu","w"],["农业","nóng yè","w"],["经过","jīng guò","w"],["专业","zhuān yè","w"],["准备","zhǔn bèi","w"],["增加","zēng jiā","w"],["获得","huò dé","w"],["旅游","lǚ yóu","w"],["一声","yī shēng","w"],["觉得","jué de","w"],["一起","yī qǐ","w"],["理论","lǐ lùn","w"],["今天","jīn tiān","w"],["非常","fēi cháng","w"],["中央","zhōng yāng","w"],["比较","bǐ jiào","w"],["表现","biǎo xiàn","w"],["价值","jià zhí","w"],["科技","kē jì","w"],["完全","wán quán","w"],["有些","yǒu xiē","w"],["存在","cún zài","w"],["达到","dá dào","w"],["内容","nèi róng","w"],["实行","shí xíng","w"],["思想","sī xiǎng","w"],["事情","shì qing","w"],["实现","shí xiàn","w"],["甚至","shèn zhì","w"],["任务","rèn wu","w"],["选举","xuǎn jǔ","w"],["形式","xíng shì","w"],["原来","yuán lái","w"],["有人","yǒu rén","w"],["突然","tū rán","w"],["不断","bù duàn","w"],["咱们","zán men","w"],["变化","biàn huà","w"],["心中","xīn zhōng","w"],["直接","zhí jiē","w"],["战争","zhàn zhēng","w"],["可是","kě shì","w"],["不知","bù zhī","w"],["政策","zhèng cè","w"],["不要","bù yào","w"],["资本","zī běn","w"],["继续","jì xù","w"],["年代","nián dài","w"],["期间","qī jiān","w"],["位于","wèi yú","w"],["任何","rèn hé","w"],["权力","quán lì","w"],["那个","nà ge","w"],["执行","zhí xíng","w"],["先生","xiān sheng","w"],["解决","jiě jué","w"],["建筑","jiàn zhù","w"],["能够","néng gòu","w"],["称为","chēng wéi","w"],["结构","jié gòu","w"],["一点","yī diǎn","w"],["成立","chéng lì","w"],["英国","yīng guó","w"],["统一","tǒng yī","w"],["先进","xiān jìn","w"],["结果","jiē guǒ","w"],["投资","tóu zī","w"],["后来","hòu lái","w"],["一下","yī xià","w"],["水平","shuǐ píng","w"],["保护","bǎo hù","w"],["主任","zhǔ rèn","w"],["关于","guān yú","w"],["负责","fù zé","w"],["制定","zhì dìng","w"],["艺术","yì shù","w"],["利用","lì yòng","w"],["于是","yú shì","w"],["学习","xué xí","w"],["合作","hé zuò","w"],["科学","kē xué","w"],["看到","kàn dào","w"],["项目","xiàng mù","w"],["襄阳","xiāng yáng","w"],["几个","jǐ ge","w"],["那里","nà li","w"],["公里","gōng lǐ","w"],["服务","fú wù","w"],["精神","jīng shén","w"],["人大","rén dà","w"],["全省","quán shěng","w"],["当然","dāng rán","w"],["个人","gè rén","w"],["超过","chāo guò","w"],["重点","chóng diǎn","w"],["原因","yuán yīn","w"],["及其","jí qí","w"],["公民","gōng mín","w"],["希望","xī wàng","w"],["新闻","xīn wén","w"],["设计","shè jì","w"],["相关","xiāng guān","w"],["国内","guó nèi","w"],["分布","fēn bù","w"],["最高","zuì gāo","w"],["部队","bù duì","w"],["它们","tā men","w"],["集团","jí tuán","w"],["信息","xìn xī","w"],["采用","cǎi yòng","w"],["重大","zhòng dà","w"],["回来","huí lai","w"],["范围","fàn wéi","w"],["引起","yǐn qǐ","w"],["实际","shí jì","w"],["其实","qí shí","w"],["不仅","bù jǐn","w"],["取得","qǔ dé","w"],["丰富","fēng fù","w"],["农民","nóng mín","w"],["整个","zhěng gè","w"],["为主","wéi zhǔ","w"],["了解","liǎo jiě","w"],["价格","jià gé","w"],["地位","dì wèi","w"],["这时","zhè shí","w"],["劳动","láo dòng","w"],["按照","àn zhào","w"],["控制","kòng zhì","w"],["目标","mù biāo","w"],["基地","jī dì","w"],["农村","nóng cūn","w"],["传统","chuán tǒng","w"],["受到","shòu dào","w"],["全部","quán bù","w"],["法国","fǎ guó","w"],["比赛","bǐ sài","w"],["军队","jūn duì","w"],["土地","tǔ dì","w"],["规模","guī mó","w"],["荆州","jīng zhōu","w"],["眼睛","yǎn jing","w"],["左右","zuǒ yòu","w"],["选择","xuǎn zé","w"],["批准","pī zhǔn","w"],["身上","shēn shang","w"],["专家","zhuān jiā","w"],["分析","fēn xī","w"],["统治","tǒng zhì","w"],["加强","jiā qiáng","w"],["不到","bù dào","w"],["铁路","tiě lù","w"],["百度","bǎi dù","w"],["每年","měi nián","w"],["告诉","gào sù","w"],["支持","zhī chí","w"],["交通","jiāo tōng","w"],["明白","míng bai","w"],["处理","chǔ lǐ","w"],["作战","zuò zhàn","w"],["时代","shí dài","w"],["皇上","huáng shang","w"],["实施","shí shī","w"],["只要","zhǐ yào","w"],["成功","chéng gōng","w"],["办法","bàn fǎ","w"],["随着","suí zhe","w"],["之中","zhī zhōng","w"],["心里","xīn li","w"],["终于","zhōng yú","w"],["大量","dà liàng","w"],["人物","rén wù","w"],["共同","gòng tóng","w"],["下去","xià qù","w"],["多少","duō shǎo","w"],["严重","yán zhòng","w"],["词条","cí tiáo","w"],["接受","jiē shòu","w"],["收入","shōu rù","w"],["以来","yǐ lái","w"],["城邦","chéng bāng","w"],["声音","shēng yīn","w"],["意见","yì jiàn","w"],["过来","guò lái","w"],["保持","bǎo chí","w"],["今日","jīn rì","w"],["另外","lìng wài","w"],["坚持","jiān chí","w"],["工人","gōng rén","w"],["汽车","qì chē","w"],["而是","ér shì","w"],["敌人","dí rén","w"],["商品","shāng pǐn","w"],["说话","shuō huà","w"],["改变","gǎi biàn","w"],["先后","xiān hòu","w"],["力量","lì liang","w"],["事业","shì yè","w"],["看见","kàn jiàn","w"],["开发","kāi fā","w"],["战略","zhàn lüè","w"],["标准","biāo zhǔn","w"],["是否","shì fǒu","w"],["出去","chū qù","w"],["今年","jīn nián","w"],["报道","bào dào","w"],["程度","chéng dù","w"],["平均","píng jūn","w"],["消息","xiāo xi","w"],["还是","hái shi","w"],["安全","ān quán","w"],["独立","dú lì","w"],["注意","zhù yì","w"],["机会","jī huì","w"],["父亲","fù qīn","w"],["此外","cǐ wài","w"],["经验","jīng yàn","w"],["采取","cǎi qǔ","w"],["喜欢","xǐ huan","w"],["根本","gēn běn","w"],["领域","lǐng yù","w"],["具体","jù tǐ","w"],["联系","lián xì","w"],["几乎","jī hū","w"],["干部","gàn bù","w"],["印度","yìn dù","w"],["如今","rú jīn","w"],["大会","dà huì","w"],["不可","bù kě","w"],["兄弟","xiōng dì","w"],["德国","dé guó","w"],["阶段","jiē duàn","w"],["感到","gǎn dào","w"],["无法","wú fǎ","w"],["宪法","xiàn fǎ","w"],["似乎","sì hū","w"],["原则","yuán zé","w"],["真正","zhēn zhèng","w"],["法规","fǎ guī","w"],["斗争","dòu zhēng","w"],["人类","rén lèi","w"],["目的","mù dì","w"],["造成","zào chéng","w"],["反对","fǎn duì","w"],["儿子","ér zi","w"],["相同","xiāng tóng","w"],["以前","yǐ qián","w"],["著名","zhù míng","w"],["众人","zhòng rén","w"],["建议","jiàn yì","w"],["迅速","xùn sù","w"],["全面","quán miàn","w"],["正是","zhèng shì","w"],["明显","míng xiǎn","w"],["就是","jiù shì","w"],["欧洲","ōu zhōu","w"],["作品","zuò pǐn","w"],["首先","shǒu xiān","w"],["集中","jí zhōng","w"],["正式","zhèng shì","w"],["朋友","péng you","w"],["第二","dì èr","w"],["召开","zhào kāi","w"],["材料","cái liào","w"],["帮助","bāng zhù","w"],["飞机","fēi jī","w"],["委员","wěi yuán","w"],["行动","xíng dòng","w"],["保证","bǎo zhèng","w"],["现象","xiàn xiàng","w"],["特点","tè diǎn","w"],["现代","xiàn dài","w"],["资料","zī liào","w"],["同志","tóng zhì","w"],["行为","xíng wéi","w"],["结束","jié shù","w"],["介绍","jiè shào","w"],["只见","zhǐ jiàn","w"],["胜利","shèng lì","w"],["认识","rèn shi","w"],["人数","rén shù","w"],["姑娘","gū niang","w"],["积极","jī jí","w"],["家庭","jiā tíng","w"],["之前","zhī qián","w"],["更加","gèng jiā","w"],["回答","huí dá","w"],["武器","wǔ qì","w"],["那样","nà yàng","w"],["应用","yìng yòng","w"],["市长","shì zhǎng","w"],["来到","lái dào","w"],["设立","shè lì","w"],["产业","chǎn yè","w"],["公路","gōng lù","w"],["人才","rén cái","w"],["意义","yì yì","w"],["台湾","tái wān","w"],["容易","róng yì","w"],["长期","cháng qī","w"],["一句","yī jù","w"],["大道","dà dào","w"],["扩大","kuò dà","w"],["官员","guān yuán","w"],["调整","tiáo zhěng","w"],["考虑","kǎo lǜ","w"],["联合","lián hé","w"],["并且","bìng qiě","w"],["自由","zì yóu","w"],["仍然","réng rán","w"],["拥有","yōng yǒu","w"],["民主","mín zhǔ","w"],["专门","zhuān mén","w"],["附近","fù jìn","w"],["师父","shī fu","w"],["结合","jié hé","w"],["清楚","qīng chu","w"],["说明","shuō míng","w"],["稳定","wěn dìng","w"],["古代","gǔ dài","w"],["此时","cǐ shí","w"],["物质","wù zhì","w"],["电话","diàn huà","w"],["网络","wǎng luò","w"],["利益","lì yì","w"],["然而","rán ér","w"],["不少","bù shǎo","w"],["中学","zhōng xué","w"],["调查","diào chá","w"],["开放","kāi fàng","w"],["人家","rén jiā","w"],["重新","chóng xīn","w"],["广泛","guǎng fàn","w"],["分为","fēn wéi","w"],["知识","zhī shi","w"],["别人","bié ren","w"],["综合","zōng hé","w"],["出口","chū kǒu","w"],["动物","dòng wù","w"],["速度","sù dù","w"],["总理","zǒng lǐ","w"],["用于","yòng yú","w"],["设备","shè bèi","w"],["女人","nǚ rén","w"],["股东","gǔ dōng","w"],["作出","zuò chū","w"],["展开","zhǎn kāi","w"],["措施","cuò shī","w"],["通常","tōng cháng","w"],["电子","diàn zǐ","w"],["方向","fāng xiàng","w"],["导弹","dǎo dàn","w"],["小时","xiǎo shí","w"],["平民","píng mín","w"],["行业","háng yè","w"],["特色","tè sè","w"],["货币","huò bì","w"],["完善","wán shàn","w"],["地理","dì lǐ","w"],["功能","gōng néng","w"],["香港","xiāng gǎng","w"],["巨大","jù dà","w"],["发表","fā biǎo","w"],["性质","xìng zhì","w"],["母亲","mǔ qīn","w"],["质量","zhì liàng","w"],["命令","mìng lìng","w"],["和平","hé píng","w"],["监督","jiān dū","w"],["身体","shēn tǐ","w"],["面前","miàn qián","w"],["武功","wǔ gōng","w"],["位置","wèi zhi","w"],["体系","tǐ xì","w"],["逐渐","zhú jiàn","w"],["指出","zhǐ chū","w"],["安排","ān pái","w"],["权利","quán lì","w"],["训练","xùn liàn","w"],["考试","kǎo shì","w"],["指挥","zhǐ huī","w"],["却是","què shì","w"],["指导","zhǐ dǎo","w"],["发布","fā bù","w"],["除了","chú le","w"],["从而","cóng ér","w"],["感觉","gǎn jué","w"],["努力","nǔ lì","w"],["机场","jī chǎng","w"],["业务","yè wù","w"],["植物","zhí wù","w"],["同样","tóng yàng","w"],["状态","zhuàng tài","w"],["银行","yín háng","w"],["书记","shū ji","w"],["治疗","zhì liáo","w"],["一阵","yī zhèn","w"],["所谓","suǒ wèi","w"],["这位","zhè wèi","w"],["反应","fǎn yìng","w"],["语言","yǔ yán","w"],["忽然","hū rán","w"],["当年","dāng nián","w"],["以下","yǐ xià","w"],["找到","zhǎo dào","w"],["青年","qīng nián","w"],["宣布","xuān bù","w"],["恢复","huī fù","w"],["离开","lí kāi","w"],["困难","kùn nan","w"],["事件","shì jiàn","w"],["哪里","nǎ lǐ","w"],["实在","shí zài","w"],["见到","jiàn dào","w"],["装备","zhuāng bèi","w"],["某些","mǒu xiē","w"],["其它","qí tā","w"],["问道","wèn dào","w"],["平原","píng yuán","w"],["经营","jīng yíng","w"],["多年","duō nián","w"],["往往","wǎng wǎng","w"],["苏联","sū lián","w"],["广场","guǎng chǎng","w"],["解释","jiě shì","w"],["因素","yīn sù","w"],["队伍","duì wǔ","w"],["教授","jiāo shòu","w"],["医院","yī yuàn","w"],["怎样","zěn yàng","w"],["男人","nán rén","w"],["双方","shuāng fāng","w"],["减少","jiǎn shǎo","w"],["考生","kǎo shēng","w"],["当地","dāng dì","w"],["多种","duō zhǒng","w"],["经常","jīng cháng","w"],["各地","gè dì","w"],["生物","shēng wù","w"],["南京","nán jīng","w"],["海军","hǎi jūn","w"],["真是","zhēn shi","w"],["心想","xīn xiǎng","w"],["外国","wài guó","w"],["财产","cái chǎn","w"],["全市","quán shì","w"],["本来","běn lái","w"],["有效","yǒu xiào","w"],["尤其","yóu qí","w"],["一边","yī biān","w"],["用户","yòng hù","w"],["方案","fāng àn","w"],["进攻","jìn gōng","w"],["机械","jī xiè","w"],["参与","cān yù","w"],["充分","chōng fèn","w"],["从事","cóng shì","w"],["尽管","jǐn guǎn","w"],["特殊","tè shū","w"],["又称","yòu chēng","w"],["一块","yī kuài","w"],["手段","shǒu duàn","w"],["生命","shēng mìng","w"],["便是","biàn shì","w"],["体育","tǐ yù","w"],["居民","jū mín","w"],["生长","shēng zhǎng","w"],["内部","nèi bù","w"],["立即","lì jí","w"],["简单","jiǎn dān","w"],["数量","shù liàng","w"],["有时","yǒu shí","w"],["开展","kāi zhǎn","w"],["文学","wén xué","w"],["进来","jìn lái","w"],["决议","jué yì","w"],["显示","xiǎn shì","w"],["属于","shǔ yú","w"],["也许","yě xǔ","w"],["气候","qì hòu","w"],["来自","lái zì","w"],["相信","xiāng xìn","w"],["确定","què dìng","w"],["投入","tóu rù","w"],["一面","yī miàn","w"],["普通","pǔ tōng","w"],["公元","gōng yuán","w"],["去年","qù nián","w"],["文章","wén zhāng","w"],["心理","xīn lǐ","w"],["女儿","nǚ ér","w"],["封建","fēng jiàn","w"],["图片","tú piàn","w"],["创造","chuàng zào","w"],["总统","zǒng tǒng","w"],["促进","cù jìn","w"],["大型","dà xíng","w"],["带来","dài lái","w"],["教师","jiào shī","w"],["竟然","jìng rán","w"],["较大","jiào dà","w"],["看来","kàn lai","w"],["若干","ruò gān","w"],["反映","fǎn yìng","w"],["每个","měi ge","w"],["每天","měi tiān","w"],["食品","shí pǐn","w"],["文明","wén míng","w"],["相当","xiāng dāng","w"],["变成","biàn chéng","w"],["资金","zī jīn","w"],["毫米","háo mǐ","w"],["中间","zhōng jiān","w"],["夫人","fū ren","w"],["相对","xiāng duì","w"],["大陆","dà lù","w"],["职权","zhí quán","w"],["西方","xī fāng","w"],["不再","bù zài","w"],["导致","dǎo zhì","w"],["对方","duì fāng","w"],["应当","yīng dāng","w"],["讨论","tǎo lùn","w"],["即使","jí shǐ","w"],["金融","jīn róng","w"],["爱国","ài guó","w"],["证明","zhèng míng","w"],["制造","zhì zào","w"],["构成","gòu chéng","w"],["老师","lǎo shī","w"],["担任","dān rèn","w"],["区域","qū yù","w"],["院长","yuàn zhǎng","w"],["家里","jiā lǐ","w"],["错误","cuò wù","w"],["曾经","céng jīng","w"],["保障","bǎo zhàng","w"],["创作","chuàng zuò","w"],["强调","qiáng diào","w"],["连续","lián xù","w"],["运输","yùn shū","w"],["看看","kàn kan","w"],["分钟","fēn zhōng","w"],["主张","zhǔ zhāng","w"],["商业","shāng yè","w"],["高速","gāo sù","w"],["真的","zhēn de","w"],["只能","zhǐ néng","w"],["天下","tiān xià","w"],["贸易","mào yì","w"],["不得","bù dé","w"],["境内","jìng nèi","w"],["体制","tǐ zhì","w"],["因而","yīn ér","w"],["例如","lì rú","w"],["财政","cái zhèng","w"],["肯定","kěn dìng","w"],["成绩","chéng jì","w"],["音乐","yīn yuè","w"],["建成","jiàn chéng","w"],["回去","huí qu","w"],["难道","nán dào","w"],["接着","jiē zhe","w"],["正确","zhèng què","w"],["以为","yǐ wéi","w"],["处于","chǔ yú","w"],["大臣","dà chén","w"],["高度","gāo dù","w"],["复杂","fù zá","w"],["社区","shè qū","w"],["身子","shēn zi","w"],["回到","huí dào","w"],["媒体","méi tǐ","w"],["地面","dì miàn","w"],["分子","fèn zǐ","w"],["意思","yì si","w"],["总是","zǒng shì","w"],["东北","dōng běi","w"],["销售","xiāo shòu","w"],["弟子","dì zǐ","w"],["未来","wèi lái","w"],["等等","děng děng","w"],["重视","zhòng shì","w"],["压力","yā lì","w"],["良好","liáng hǎo","w"],["到底","dào dǐ","w"],["各个","gè gè","w"],["最终","zuì zhōng","w"],["战斗","zhàn dòu","w"],["航空","háng kōng","w"],["之下","zhī xià","w"],["一级","yī jí","w"],["里面","lǐ miàn","w"],["数学","shù xué","w"],["毕业","bì yè","w"],["竞争","jìng zhēng","w"],["宗教","zōng jiào","w"],["比例","bǐ lì","w"],["健康","jiàn kāng","w"],["适应","shì yìng","w"],["她们","tā men","w"],["出版","chū bǎn","w"],["故事","gù shì","w"],["责任","zé rèn","w"],["面对","miàn duì","w"],["将军","jiāng jūn","w"],["粮食","liáng shi","w"],["政权","zhèng quán","w"],["各国","gè guó","w"],["类型","lèi xíng","w"],["发挥","fā huī","w"],["听说","tīng shuō","w"],["遗址","yí zhǐ","w"],["南北","nán běi","w"],["立刻","lì kè","w"],["亚洲","yà zhōu","w"],["正常","zhèng cháng","w"],["女子","nǚ zǐ","w"],["培养","péi yǎng","w"],["就业","jiù yè","w"],["大小","dà xiǎo","w"],["明确","míng què","w"],["优势","yōu shì","w"],["好像","hǎo xiàng","w"],["至少","zhì shǎo","w"],["人士","rén shì","w"],["晚上","wǎn shang","w"],["特征","tè zhēng","w"],["确实","què shí","w"],["贡献","gòng xiàn","w"],["实验","shí yàn","w"],["高级","gāo jí","w"],["想到","xiǎng dào","w"],["关键","guān jiàn","w"],["一眼","yī yǎn","w"],["周围","zhōu wéi","w"],["难以","nán yǐ","w"],["样子","yàng zi","w"],["本报","běn bào","w"],["相互","xiāng hù","w"],["部长","bù zhǎng","w"],["身边","shēn biān","w"],["广州","guǎng zhōu","w"],["之外","zhī wài","w"],["蒙古","měng gǔ","w"],["发出","fā chū","w"],["只有","zhǐ yǒu","w"],["比如","bǐ rú","w"],["理解","lǐ jiě","w"],["刚才","gāng cái","w"],["不足","bù zú","w"],["南部","nán bù","w"],["程序","chéng xù","w"],["加上","jiā shàng","w"],["西北","xī běi","w"],["父母","fù mǔ","w"],["适当","shì dàng","w"],["留下","liú xià","w"],["研制","yán zhì","w"],["省级","shěng jí","w"],["发达","fā dá","w"],["东部","dōng bù","w"],["品种","pǐn zhǒng","w"],["愿意","yuàn yì","w"],["道路","dào lù","w"],["类似","lèi sì","w"],["空军","kōng jūn","w"],["行使","xíng shǐ","w"],["细胞","xì bāo","w"],["空间","kōng jiān","w"],["形势","xíng shì","w"],["西部","xī bù","w"],["小说","xiǎo shuō","w"],["妇女","fù nǚ","w"],["股份","gǔ fèn","w"],["维护","wéi hù","w"],["公布","gōng bù","w"],["名称","míng chēng","w"],["只好","zhǐ hǎo","w"],["检查","jiǎn chá","w"],["化学","huà xué","w"],["任期","rèn qī","w"],["儿童","ér tóng","w"],["矛盾","máo dùn","w"],["本身","běn shēn","w"],["规划","guī huà","w"],["状况","zhuàng kuàng","w"],["一家","yī jiā","w"],["实践","shí jiàn","w"],["成长","chéng zhǎng","w"],["需求","xū qiú","w"],["分配","fēn pèi","w"],["多次","duō cì","w"],["一致","yī zhì","w"],["西南","xī nán","w"],["一时","yī shí","w"],["既然","jì rán","w"],["贵族","guì zú","w"],["高兴","gāo xìng","w"],["全体","quán tǐ","w"],["美元","měi yuán","w"],["统计","tǒng jì","w"],["事务","shì wù","w"],["体现","tǐ xiàn","w"],["名字","míng zi","w"],["不了","bù le","w"],["始终","shǐ zhōng","w"],["产量","chǎn liàng","w"],["最近","zuì jìn","w"],["长安","cháng ān","w"],["英雄","yīng xióng","w"],["同意","tóng yì","w"],["从此","cóng cǐ","w"],["海拔","hǎi bá","w"],["掌握","zhǎng wò","w"],["普遍","pǔ biàn","w"],["宜昌","yí chāng","w"],["招生","zhāo shēng","w"],["攻击","gōng jī","w"],["天然","tiān rán","w"],["不错","bù cuò","w"],["亲自","qīn zì","w"],["一旦","yī dàn","w"],["相应","xiāng yìng","w"],["观点","guān diǎn","w"],["实力","shí lì","w"],["中部","zhōng bù","w"],["听到","tīng dào","w"],["再次","zài cì","w"],["更是","gèng shì","w"],["突出","tū chū","w"],["全球","quán qiú","w"],["条例","tiáo lì","w"],["经历","jīng lì","w"],["进步","jìn bù","w"],["上述","shàng shù","w"],["抗日","kàng rì","w"],["绝对","jué duì","w"],["修改","xiū gǎi","w"],["优秀","yōu xiù","w"],["至于","zhì yú","w"],["河流","hé liú","w"],["发动","fā dòng","w"],["审议","shěn yì","w"],["计算","jì suàn","w"],["数据","shù jù","w"],["关注","guān zhù","w"],["女性","nǚ xìng","w"],["职工","zhí gōng","w"],["必要","bì yào","w"],["朝廷","cháo tíng","w"],["表明","biǎo míng","w"],["主持","zhǔ chí","w"],["常常","cháng cháng","w"],["遇到","yù dào","w"],["在于","zài yú","w"],["消费","xiāo fèi","w"],["欢迎","huān yíng","w"],["想起","xiǎng qǐ","w"],["日子","rì zi","w"],["条约","tiáo yuē","w"],["协议","xié yì","w"],["公开","gōng kāi","w"],["限制","xiàn zhì","w"],["现实","xiàn shí","w"],["武昌","wǔ chāng","w"],["强烈","qiáng liè","w"],["早已","zǎo yǐ","w"],["的话","de huà","w"],["衣服","yī fu","w"],["太阳","tài yang","w"],["河南","hé nán","w"],["广大","guǎng dà","w"],["正在","zhèng zài","w"],["胖子","pàng zi","w"],["态度","tài du","w"],["不好","bù hǎo","w"],["交流","jiāo liú","w"],["前面","qián miàn","w"],["森林","sēn lín","w"],["显然","xiǎn rán","w"],["有所","yǒu suǒ","w"],["闯王","chuǎng wáng","w"],["撤销","chè xiāo","w"],["千米","qiān mǐ","w"],["破坏","pò huài","w"],["双手","shuāng shǒu","w"],["江南","jiāng nán","w"],["阅读","yuè dú","w"],["上面","shàng miàn","w"],["工资","gōng zī","w"],["六安","lù ān","p"],["蚌埠","bèng bù","p"],["亳州","bó zhōu","p"],["盱眙","xū yí","p"],["番禺","pān yú","p"],["丽水","lí shuǐ","p"],["台州","tāi zhōu","p"],["铅山","yán shān","p"],["婺源","wù yuán","p"],["鄱阳","pó yáng","p"],["涪陵","fú líng","p"],["邛崃","qióng lái","p"],["犍为","qián wéi","p"],["阆中","làng zhōng","p"],["郫都","pí dū","p"],["什邡","shí fāng","p"],["华蓥","huá yíng","p"],["睢宁","suī níng","p"],["沭阳","shù yáng","p"],["兖州","yǎn zhōu","p"],["芝罘","zhī fú","p"],["牟平","mù píng","p"],["冠县","guàn xiàn","p"],["乐亭","lào tíng","p"],["蔚县","yù xiàn","p"],["藁城","gǎo chéng","p"],["涿州","zhuō zhōu","p"],["筠连","jūn lián","p"],["珙县","gǒng xiàn","p"],["厦门","xià mén","p"],["东莞","dōng guǎn","p"],["单县","shàn xiàn","p"],["涡阳","guō yáng","p"],["黟县","yī xiàn","p"],["歙县","shè xiàn","p"],["枞阳","zōng yáng","p"],["鄄城","juàn chéng","p"],["郯城","tán chéng","p"],["茌平","chí píng","p"],["东阿","dōng ē","p"],["井陉","jǐng xíng","p"],["鄠邑","hù yì","p"],["邳州","pī zhōu","p"],["濉溪","suī xī","p"],["砀山","dàng shān","p"],["弋阳","yì yáng","p"],["于都","yú dū","p"],["长乐","cháng lè","p"],["建瓯","jiàn ōu","p"],["衢州","qú zhōu","p"],["嵊州","shèng zhōu","p"],["鄞州","yín zhōu","p"],["甪直","lù zhí","p"],["溧阳","lì yáng","p"],["耒阳","lěi yáng","p"],["郴州","chēn zhōu","p"],["是","shì","s"],["在","zài","s"],["有","yǒu","s"],["他","tā","s"],["不","bù","s"],["我","wǒ","s"],["人","rén","s"],["也","yě","s"],["就","jiù","s"],["年","nián","s"],["你","nǐ","s"],["一","yī","s"],["到","dào","s"],["等","děng","s"],["对","duì","s"],["来","lái","s"],["又","yòu","s"],["而","ér","s"],["之","zhī","s"],["道","dào","s"],["以","yǐ","s"],["她","tā","s"],["后","hòu","s"],["去","qù","s"],["但","dàn","s"],["从","cóng","s"],["月","yuè","s"],["下","xià","s"],["被","bèi","s"],["于","yú","s"],["时","shí","s"],["多","duō","s"],["能","néng","s"],["出","chū","s"],["或","huò","s"],["日","rì","s"],["由","yóu","s"],["里","lǐ","s"],["用","yòng","s"],["所","suǒ","s"],["向","xiàng","s"],["已","yǐ","s"],["其","qí","s"],["很","hěn","s"],["使","shǐ","s"],["前","qián","s"],["新","xīn","s"],["想","xiǎng","s"],["却","què","s"],["它","tā","s"],["最","zuì","s"],["起","qǐ","s"],["小","xiǎo","s"],["高","gāo","s"],["如","rú","s"],["再","zài","s"],["才","cái","s"],["走","zǒu","s"],["做","zuò","s"],["让","ràng","s"],["内","nèi","s"],["及","jí","s"],["成","chéng","s"],["各","gè","s"],["事","shì","s"],["至","zhì","s"],["叫","jiào","s"],["两","liǎng","s"],["三","sān","s"],["本","běn","s"],["此","cǐ","s"],["们","men","s"],["家","jiā","s"],["市","shì","s"],["门","mén","s"],["吃","chī","s"],["天","tiān","s"],["米","mǐ","s"],["外","wài","s"],["即","jí","s"],["问","wèn","s"],["话","huà","s"],["老","lǎo","s"],["自","zì","s"],["副","fù","s"],["跟","gēn","s"],["笑","xiào","s"],["则","zé","s"],["像","xiàng","s"],["较","jiào","s"],["国","guó","s"],["死","sǐ","s"],["住","zhù","s"],["因","yīn","s"],["元","yuán","s"],["手","shǒu","s"],["达","dá","s"],["该","gāi","s"],["开","kāi","s"],["路","lù","s"],["军","jūn","s"],["名","míng","s"],["二","èr","s"],["每","měi","s"],["谁","shéi","s"],["受","shòu","s"],["带","dài","s"],["进","jìn","s"],["先","xiān","s"],["县","xiàn","s"],["心","xīn","s"],["太","tài","s"],["点","diǎn","s"],["水","shuǐ","s"],["张","zhāng","s"],["今","jīn","s"],["总","zǒng","s"],["回","huí","s"],["山","shān","s"],["请","qǐng","s"],["者","zhě","s"],["党","dǎng","s"],["段","duàn","s"],["法","fǎ","s"],["连","lián","s"],["站","zhàn","s"],["第","dì","s"],["共","gòng","s"],["另","lìng","s"],["生","shēng","s"],["全","quán","s"],["快","kuài","s"],["经","jīng","s"],["按","àn","s"],["找","zhǎo","s"],["口","kǒu","s"],["均","jūn","s"],["字","zì","s"],["入","rù","s"],["真","zhēn","s"],["拿","ná","s"],["城","chéng","s"],["马","mǎ","s"],["四","sì","s"],["书","shū","s"],["仍","réng","s"],["西","xī","s"],["东","dōng","s"],["次","cì","s"],["些","xiē","s"],["钱","qián","s"],["北","běi","s"],["气","qì","s"],["近","jìn","s"],["杀","shā","s"],["清","qīng","s"],["学","xué","s"],["既","jì","s"],["往","wǎng","s"],["原","yuán","s"],["美","měi","s"],["未","wèi","s"],["杨","yáng","s"],["兵","bīng","s"],["非","fēi","s"],["除","chú","s"],["位","wèi","s"],["鱼","yú","s"],["明","míng","s"],["设","shè","s"],["州","zhōu","s"],["直","zhí","s"],["定","dìng","s"],["越","yuè","s"],["身","shēn","s"],["声","shēng","s"],["五","wǔ","s"],["低","dī","s"],["坐","zuò","s"],["极","jí","s"],["放","fàng","s"],["金","jīn","s"],["爱","ài","s"],["知","zhī","s"],["主","zhǔ","s"],["您","nín","s"],["报","bào","s"],["类","lèi","s"],["早","zǎo","s"],["虽","suī","s"],["面","miàn","s"],["初","chū","s"],["性","xìng","s"],["型","xíng","s"],["讲","jiǎng","s"],["部","bù","s"],["送","sòng","s"],["反","fǎn","s"],["指","zhǐ","s"],["乡","xiāng","s"],["方","fāng","s"],["完","wán","s"],["常","cháng","s"],["意","yì","s"],["队","duì","s"],["式","shì","s"],["左","zuǒ","s"],["花","huā","s"],["电","diàn","s"],["条","tiáo","s"],["剑","jiàn","s"],["神","shén","s"],["动","dòng","s"],["湖","hú","s"],["河","hé","s"],["白","bái","s"],["官","guān","s"],["师","shī","s"],["仅","jǐn","s"],["变","biàn","s"],["图","tú","s"],["平","píng","s"],["府","fǔ","s"],["热","rè","s"],["制","zhì","s"],["望","wàng","s"],["岁","suì","s"],["建","jiàn","s"],["命","mìng","s"],["加","jiā","s"],["管","guǎn","s"],["穿","chuān","s"],["众","zhòng","s"],["黑","hēi","s"],["怕","pà","s"],["风","fēng","s"],["信","xìn","s"],["置","zhì","s"],["急","jí","s"],["黄","huáng","s"],["镇","zhèn","s"],["取","qǔ","s"],["光","guāng","s"],["竟","jìng","s"],["力","lì","s"],["曰","yuē","s"],["深","shēn","s"],["脸","liǎn","s"],["买","mǎi","s"],["接","jiē","s"],["茶","chá","s"],["且","qiě","s"],["办","bàn","s"],["文","wén","s"],["忙","máng","s"],["郡","jùn","s"],["刚","gāng","s"],["级","jí","s"],["故","gù","s"],["言","yán","s"],["海","hǎi","s"],["座","zuò","s"],["酒","jiǔ","s"],["满","mǎn","s"],["李","lǐ","s"],["飞","fēi","s"],["流","liú","s"],["德","dé","s"],["瞧","qiáo","s"],["右","yòu","s"],["亦","yì","s"],["改","gǎi","s"],["刀","dāo","s"],["破","pò","s"],["龙","lóng","s"],["需","xū","s"],["宽","kuān","s"],["必","bì","s"],["病","bìng","s"],["随","suí","s"],["须","xū","s"],["呈","chéng","s"],["汉","hàn","s"],["群","qún","s"],["算","suàn","s"],["战","zhàn","s"],["眼","yǎn","s"],["安","ān","s"],["靠","kào","s"],["项","xiàng","s"],["首","shǒu","s"],["掌","zhǎng","s"],["街","jiē","s"],["铁","tiě","s"],["物","wù","s"],["林","lín","s"],["土","tǔ","s"],["菜","cài","s"],["现","xiàn","s"],["火","huǒ","s"],["桥","qiáo","s"],["股","gǔ","s"],["象","xiàng","s"],["古","gǔ","s"],["跳","tiào","s"],["某","mǒu","s"],["惊","jīng","s"],["搞","gǎo","s"],["药","yào","s"],["双","shuāng","s"],["情","qíng","s"],["鄂","è","s"],["掉","diào","s"],["立","lì","s"],["乱","luàn","s"],["周","zhōu","s"],["承","chéng","s"],["村","cūn","s"],["收","shōu","s"],["半","bàn","s"],["九","jiǔ","s"],["活","huó","s"],["敢","gǎn","s"],["余","yú","s"],["获","huò","s"],["兼","jiān","s"],["十","shí","s"],["特","tè","s"],["船","chuán","s"],["顶","dǐng","s"],["断","duàn","s"],["毛","máo","s"],["吴","wú","s"],["形","xíng","s"],["线","xiàn","s"],["忽","hū","s"],["七","qī","s"],["久","jiǔ","s"],["史","shǐ","s"],["辖","xiá","s"],["英","yīng","s"],["卖","mài","s"],["血","xuè","s"],["画","huà","s"],["轻","qīng","s"],["皆","jiē","s"],["治","zhì","s"],["权","quán","s"],["哭","kū","s"],["记","jì","s"],["男","nán","s"],["八","bā","s"],["喜","xǐ","s"],["伤","shāng","s"],["架","jià","s"],["归","guī","s"],["退","tuì","s"],["游","yóu","s"],["实","shí","s"],["姓","xìng","s"],["朱","zhū","s"],["网","wǎng","s"],["皮","pí","s"],["睡","shuì","s"],["选","xuǎn","s"],["科","kē","s"],["关","guān","s"],["骂","mà","s"],["院","yuàn","s"],["含","hán","s"],["机","jī","s"],["装","zhuāng","s"],["理","lǐ","s"],["驻","zhù","s"],["产","chǎn","s"],["领","lǐng","s"],["块","kuài","s"],["怎","zěn","s"],["封","fēng","s"],["谈","tán","s"],["诸","zhū","s"],["团","tuán","s"],["肉","ròu","s"],["期","qī","s"],["岛","dǎo","s"],["代","dài","s"],["短","duǎn","s"],["旧","jiù","s"],["嘴","zuǐ","s"],["挂","guà","s"],["留","liú","s"],["民","mín","s"],["敌","dí","s"],["京","jīng","s"],["诗","shī","s"],["愿","yuàn","s"],["墓","mù","s"],["世","shì","s"],["举","jǔ","s"],["殿","diàn","s"],["帮","bāng","s"],["抓","zhuā","s"],["换","huàn","s"],["件","jiàn","s"],["求","qiú","s"],["房","fáng","s"],["宫","gōng","s"],["云","yún","s"],["错","cuò","s"],["牛","niú","s"],["拜","bài","s"],["饭","fàn","s"],["推","tuī","s"],["状","zhuàng","s"],["复","fù","s"],["克","kè","s"],["救","jiù","s"],["楼","lóu","s"],["胜","shèng","s"],["具","jù","s"],["层","céng","s"],["集","jí","s"],["章","zhāng","s"],["届","jiè","s"],["木","mù","s"],["怪","guài","s"],["江","jiāng","s"],["抱","bào","s"],["职","zhí","s"],["拍","pāi","s"],["交","jiāo","s"],["表","biǎo","s"],["营","yíng","s"],["田","tián","s"],["修","xiū","s"],["考","kǎo","s"],["员","yuán","s"],["银","yín","s"],["欲","yù","s"],["何","hé","s"],["停","tíng","s"],["界","jiè","s"],["紫","zǐ","s"],["刘","liú","s"],["善","shàn","s"],["香","xiāng","s"],["晚","wǎn","s"],["吨","dūn","s"],["亚","yà","s"],["列","liè","s"],["质","zhì","s"],["铜","tóng","s"],["词","cí","s"],["暖","nuǎn","s"],["感","gǎn","s"],["凭","píng","s"],["紧","jǐn","s"],["题","tí","s"],["臣","chén","s"],["油","yóu","s"],["球","qiú","s"],["守","shǒu","s"],["俄","é","s"],["功","gōng","s"],["端","duān","s"],["公","gōng","s"],["义","yì","s"],["攻","gōng","s"],["陈","chén","s"],["礼","lǐ","s"],["青","qīng","s"],["引","yǐn","s"],["投","tóu","s"],["目","mù","s"],["树","shù","s"],["寺","sì","s"],["墙","qiáng","s"],["颇","pō","s"],["尚","shàng","s"],["凡","fán","s"],["邦","bāng","s"],["根","gēn","s"],["枪","qiāng","s"],["运","yùn","s"],["值","zhí","s"],["港","gǎng","s"],["响","xiǎng","s"],["势","shì","s"],["鬼","guǐ","s"],["批","pī","s"],["包","bāo","s"],["替","tì","s"],["司","sī","s"],["旁","páng","s"],["夏","xià","s"],["招","zhāo","s"],["武","wǔ","s"],["冒","mào","s"],["族","zú","s"],["贴","tiē","s"],["硬","yìng","s"],["利","lì","s"],["坛","tán","s"],["冷","lěng","s"],["玉","yù","s"],["腿","tuǐ","s"],["保","bǎo","s"],["照","zhào","s"],["御","yù","s"],["易","yì","s"],["贼","zéi","s"],["妈","mā","s"],["宋","sòng","s"],["专","zhuān","s"],["熟","shú","s"],["计","jì","s"],["忘","wàng","s"],["赴","fù","s"],["射","shè","s"],["乃","nǎi","s"],["巴","bā","s"],["支","zhī","s"],["厚","hòu","s"],["烧","shāo","s"],["微","wēi","s"],["虎","hǔ","s"],["布","bù","s"],["升","shēng","s"],["依","yī","s"],["苦","kǔ","s"],["绝","jué","s"],["翻","fān","s"],["逃","táo","s"],["唐","táng","s"],["春","chūn","s"],["闻","wén","s"],["略","lüè","s"],["甲","jiǎ","s"],["楚","chǔ","s"],["喊","hǎn","s"],["份","fèn","s"],["班","bān","s"],["怒","nù","s"],["孙","sūn","s"],["绣","xiù","s"],["版","bǎn","s"],["坏","huài","s"],["组","zǔ","s"],["轮","lún","s"],["哥","gē","s"],["决","jué","s"],["显","xiǎn","s"],["室","shì","s"],["业","yè","s"],["庙","miào","s"],["素","sù","s"],["扑","pū","s"],["赶","gǎn","s"],["迎","yíng","s"],["宝","bǎo","s"],["果","guǒ","s"],["贵","guì","s"],["炒","chǎo","s"],["闹","nào","s"],["抬","tái","s"],["齐","qí","s"],["盐","yán","s"],["星","xīng","s"],["客","kè","s"],["摆","bǎi","s"],["借","jiè","s"],["负","fù","s"],["击","jī","s"],["戴","dài","s"],["细","xì","s"],["呆","dāi","s"],["奉","fèng","s"],["唱","chàng","s"],["毒","dú","s"],["味","wèi","s"],["始","shǐ","s"],["亮","liàng","s"],["套","tào","s"],["步","bù","s"],["仙","xiān","s"],["雪","xuě","s"],["倍","bèi","s"],["耳","ěr","s"],["忌","jì","s"],["核","hé","s"],["纵","zòng","s"],["器","qì","s"],["藕","ǒu","s"],["玩","wán","s"],["练","liàn","s"],["罪","zuì","s"],["距","jù","s"],["寨","zhài","s"],["厅","tīng","s"],["叹","tàn","s"],["恨","hèn","s"],["斯","sī","s"],["吹","chuī","s"],["虚","xū","s"],["够","gòu","s"],["讯","xùn","s"],["弦","xián","s"],["环","huán","s"],["精","jīng","s"],["户","hù","s"],["挥","huī","s"],["爬","pá","s"],["奏","zòu","s"],["持","chí","s"],["亿","yì","s"],["夜","yè","s"],["源","yuán","s"],["围","wéi","s"],["局","jú","s"],["懂","dǒng","s"],["存","cún","s"],["秒","miǎo","s"],["念","niàn","s"],["娘","niáng","s"],["插","chā","s"],["献","xiàn","s"],["境","jìng","s"],["密","mì","s"],["竹","zhú","s"],["僧","sēng","s"],["酸","suān","s"],["烟","yān","s"],["超","chāo","s"],["苏","sū","s"],["蛋","dàn","s"],["隔","gé","s"],["商","shāng","s"],["排","pái","s"],["堂","táng","s"],["盘","pán","s"],["皇","huáng","s"],["圆","yuán","s"],["争","zhēng","s"],["偏","piān","s"],["顾","gù","s"],["狗","gǒu","s"],["尔","ěr","s"],["鸡","jī","s"],["湘","xiāng","s"],["脱","tuō","s"],["撞","zhuàng","s"],["工","gōng","s"],["帝","dì","s"],["篇","piān","s"],["挺","tǐng","s"],["犯","fàn","s"],["波","bō","s"],["告","gào","s"],["罗","luó","s"],["软","ruǎn","s"],["千","qiān","s"],["纸","zhǐ","s"],["试","shì","s"],["然","rán","s"],["梦","mèng","s"],["松","sōng","s"],["辽","liáo","s"],["旗","qí","s"],["痛","tòng","s"],["准","zhǔn","s"],["志","zhì","s"],["失","shī","s"],["害","hài","s"],["陪","péi","s"],["啥","shá","s"],["致","zhì","s"],["基","jī","s"],["证","zhèng","s"],["躲","duǒ","s"],["确","què","s"],["逼","bī","s"],["政","zhèng","s"],["烤","kǎo","s"],["舰","jiàn","s"],["社","shè","s"],["钟","zhōng","s"],["咬","yǎo","s"],["糖","táng","s"],["劝","quàn","s"],["宜","yí","s"],["腰","yāo","s"],["灭","miè","s"],["箭","jiàn","s"],["寻","xún","s"],["躺","tǎng","s"],["襄","xiāng","s"],["恩","ēn","s"],["跪","guì","s"],["遇","yù","s"],["谷","gǔ","s"],["猛","měng","s"],["印","yìn","s"],["异","yì","s"],["拖","tuō","s"],["粮","liáng","s"],["韩","hán","s"],["灯","dēng","s"],["抗","kàng","s"],["伸","shēn","s"],["店","diàn","s"],["阳","yáng","s"],["阵","zhèn","s"],["兄","xiōng","s"],["帐","zhàng","s"],["编","biān","s"],["智","zhì","s"],["沿","yán","s"],["暗","àn","s"],["灵","líng","s"],["百","bǎi","s"],["遭","zāo","s"],["移","yí","s"],["砍","kǎn","s"],["郭","guō","s"],["养","yǎng","s"],["胡","hú","s"],["呼","hū","s"],["托","tuō","s"],["宗","zōng","s"],["仗","zhàng","s"],["艘","sōu","s"],["补","bǔ","s"],["吾","wú","s"],["笔","bǐ","s"],["费","fèi","s"],["柄","bǐng","s"],["瓦","wǎ","s"],["败","bài","s"],["拱","gǒng","s"],["毕","bì","s"],["床","chuáng","s"],["止","zhǐ","s"],["牌","pái","s"],["爹","diē","s"],["碗","wǎn","s"],["爷","yé","s"],["魔","mó","s"],["君","jūn","s"],["孔","kǒng","s"],["洲","zhōu","s"],["奖","jiǎng","s"],["夺","duó","s"],["猪","zhū","s"],["搭","dā","s"],["扶","fú","s"],["赵","zhào","s"],["联","lián","s"],["穴","xué","s"],["虫","chóng","s"],["莫","mò","s"],["造","zào","s"],["登","dēng","s"],["增","zēng","s"],["戏","xì","s"],["歌","gē","s"],["绕","rào","s"],["毁","huǐ","s"],["防","fáng","s"],["尖","jiān","s"],["踢","tī","s"],["父","fù","s"],["塔","tǎ","s"],["弱","ruò","s"],["雕","diāo","s"],["羊","yáng","s"],["肯","kěn","s"],["母","mǔ","s"],["脑","nǎo","s"],["视","shì","s"],["枚","méi","s"],["婚","hūn","s"],["滑","huá","s"],["雄","xióng","s"],["输","shū","s"],["许","xǔ","s"],["闯","chuǎng","s"],["捧","pěng","s"],["福","fú","s"],["案","àn","s"],["顺","shùn","s"],["闪","shǎn","s"],["震","zhèn","s"],["迁","qiān","s"],["课","kè","s"],["挖","wā","s"],["灰","huī","s"],["袁","yuán","s"],["搬","bān","s"],["扯","chě","s"],["丢","diū","s"],["独","dú","s"],["跨","kuà","s"],["施","shī","s"],["秋","qiū","s"],["陵","líng","s"],["授","shòu","s"],["糕","gāo","s"],["斜","xié","s"],["秦","qín","s"],["擦","cā","s"],["瞎","xiā","s"],["亭","tíng","s"],["注","zhù","s"],["镑","bàng","s"],["尼","ní","s"],["临","lín","s"],["护","hù","s"],["丝","sī","s"],["温","wēn","s"],["醒","xǐng","s"],["演","yǎn","s"],["赛","sài","s"],["抽","chōu","s"],["屋","wū","s"],["氨","ān","s"],["旨","zhǐ","s"],["例","lì","s"],["跃","yuè","s"],["料","liào","s"],["牙","yá","s"],["廊","láng","s"],["透","tòu","s"],["滚","gǔn","s"],["蓝","lán","s"],["亩","mǔ","s"],["舞","wǔ","s"],["审","shěn","s"],["旅","lǚ","s"],["配","pèi","s"],["摇","yáo","s"],["杯","bēi","s"],["富","fù","s"],["狼","láng","s"],["荆","jīng","s"],["音","yīn","s"],["鼓","gǔ","s"],["珠","zhū","s"],["袭","xí","s"],["附","fù","s"],["慢","màn","s"],["睁","zhēng","s"],["废","fèi","s"],["愈","yù","s"],["容","róng","s"],["颁","bān","s"],["嘉","jiā","s"],["思","sī","s"],["赤","chì","s"],["征","zhēng","s"],["拔","bá","s"],["蜀","shǔ","s"],["尤","yóu","s"],["顿","dùn","s"],["粗","cū","s"],["俺","ǎn","s"],["丹","dān","s"],["严","yán","s"],["吉","jí","s"],["偷","tōu","s"],["寄","jì","s"],["叔","shū","s"],["歇","xiē","s"],["锅","guō","s"],["吸","xī","s"],["煤","méi","s"],["辆","liàng","s"],["闭","bì","s"],["钢","gāng","s"],["刻","kè","s"],["认","rèn","s"],["妖","yāo","s"],["缺","quē","s"],["谢","xiè","s"],["煎","jiān","s"],["脊","jǐ","s"],["吻","wěn","s"],["尸","shī","s"],["柳","liǔ","s"],["税","shuì","s"],["聚","jù","s"],["豆","dòu","s"],["赢","yíng","s"],["堆","duī","s"],["额","é","s"],["轿","jiào","s"],["抵","dǐ","s"],["俘","fú","s"],["静","jìng","s"],["限","xiàn","s"],["鸿","hóng","s"],["摔","shuāi","s"],["积","jī","s"],["棒","bàng","s"],["针","zhēn","s"],["士","shì","s"],["伏","fú","s"],["赏","shǎng","s"],["避","bì","s"],["佳","jiā","s"],["岩","yán","s"],["役","yì","s"],["沉","chén","s"],["阁","gé","s"],["捉","zhuō","s"],["探","tàn","s"],["沟","gōu","s"],["垂","chuí","s"],["纯","chún","s"],["赐","cì","s"],["斩","zhǎn","s"],["幅","fú","s"],["猜","cāi","s"],["终","zhōng","s"],["票","piào","s"],["粉","fěn","s"],["继","jì","s"],["沪","hù","s"],["欧","ōu","s"],["掷","zhì","s"],["徐","xú","s"],["休","xiū","s"],["样","yàng","s"],["彩","cǎi","s"],["嫁","jià","s"],["壁","bì","s"],["阴","yīn","s"],["穷","qióng","s"],["俱","jù","s"],["矿","kuàng","s"],["砸","zá","s"],["备","bèi","s"],["矣","yǐ","s"],["胸","xiōng","s"],["递","dì","s"],["庆","qìng","s"],["品","pǐn","s"],["扔","rēng","s"],["握","wò","s"],["煮","zhǔ","s"],["挤","jǐ","s"],["峰","fēng","s"],["拥","yōng","s"],["谱","pǔ","s"],["讨","tǎo","s"],["货","huò","s"],["议","yì","s"],["亡","wáng","s"],["影","yǐng","s"],["执","zhí","s"],["盗","dào","s"],["统","tǒng","s"],["筑","zhù","s"],["冰","bīng","s"],["撤","chè","s"],["忠","zhōng","s"],["曹","cáo","s"],["碎","suì","s"],["纲","gāng","s"],["娶","qǔ","s"],["杂","zá","s"],["跌","diē","s"],["尊","zūn","s"],["妙","miào","s"],["拨","bō","s"],["遍","biàn","s"],["拳","quán","s"],["徒","tú","s"],["搜","sōu","s"],["忍","rěn","s"],["助","zhù","s"],["傻","shǎ","s"],["减","jiǎn","s"],["捕","bǔ","s"],["渡","dù","s"],["程","chéng","s"],["窝","wō","s"],["测","cè","s"],["抛","pāo","s"],["律","lǜ","s"],["库","kù","s"],["规","guī","s"],["租","zū","s"],["奥","ào","s"],["梁","liáng","s"],["速","sù","s"],["患","huàn","s"],["嫩","nèn","s"],["互","hù","s"],["罚","fá","s"],["兽","shòu","s"],["缘","yuán","s"],["湿","shī","s"],["湾","wān","s"],["弯","wān","s"],["缩","suō","s"],["馆","guǎn","s"],["烈","liè","s"],["巨","jù","s"],["寒","hán","s"],["魏","wèi","s"],["驾","jià","s"],["甜","tián","s"],["己","jǐ","s"],["谋","móu","s"],["历","lì","s"],["景","jǐng","s"],["颗","kē","s"],["邪","xié","s"],["郎","láng","s"],["盯","dīng","s"],["砖","zhuān","s"],["孤","gū","s"],["标","biāo","s"],["泪","lèi","s"],["牵","qiān","s"],["纳","nà","s"],["锦","jǐn","s"],["膜","mó","s"],["展","zhǎn","s"],["津","jīn","s"],["突","tū","s"],["阔","kuò","s"],["付","fù","s"],["净","jìng","s"],["雷","léi","s"],["饿","è","s"],["邻","lín","s"],["敲","qiāo","s"],["倾","qīng","s"],["鞭","biān","s"],["绘","huì","s"],["扩","kuò","s"],["岸","àn","s"],["杖","zhàng","s"],["拟","nǐ","s"],["迟","chí","s"],["怀","huái","s"],["园","yuán","s"],["威","wēi","s"],["趁","chèn","s"],["私","sī","s"],["稳","wěn","s"],["慌","huāng","s"],["肩","jiān","s"],["轰","hōng","s"],["珊","shān","s"],["伊","yī","s"],["碰","pèng","s"],["浓","nóng","s"],["农","nóng","s"],["祝","zhù","s"],["勇","yǒng","s"],["葬","zàng","s"],["悬","xuán","s"],["孝","xiào","s"],["纹","wén","s"],["疼","téng","s"],["誉","yù","s"],["洪","hóng","s"],["剩","shèng","s"],["零","líng","s"],["坤","kūn","s"],["录","lù","s"],["割","gē","s"],["棺","guān","s"],["缓","huǎn","s"],["瘦","shòu","s"],["鹿","lù","s"],["瓶","píng","s"],["童","tóng","s"],["遣","qiǎn","s"],["娃","wá","s"],["忧","yōu","s"],["麻","má","s"],["径","jìng","s"],["筋","jīn","s"],["剧","jù","s"],["译","yì","s"],["柱","zhù","s"],["骗","piàn","s"],["永","yǒng","s"],["鼻","bí","s"],["拆","chāi","s"],["狂","kuáng","s"],["碑","bēi","s"],["肥","féi","s"],["疏","shū","s"],["棉","mián","s"],["瞪","dèng","s"],["疾","jí","s"],["辞","cí","s"],["整","zhěng","s"],["醉","zuì","s"],["翁","wēng","s"],["潜","qián","s"],["险","xiǎn","s"],["峡","xiá","s"],["碳","tàn","s"],["阻","zǔ","s"],["财","cái","s"],["固","gù","s"],["琴","qín","s"],["川","chuān","s"],["肝","gān","s"],["误","wù","s"],["仪","yí","s"],["嫌","xián","s"],["策","cè","s"],["堤","dī","s"],["灌","guàn","s"],["盼","pàn","s"],["润","rùn","s"],["臂","bì","s"],["捏","niē","s"],["维","wéi","s"],["姑","gū","s"],["埃","āi","s"],["秀","xiù","s"],["颤","chàn","s"],["凶","xiōng","s"],["消","xiāo","s"],["述","shù","s"],["爸","bà","s"],["液","yè","s"],["态","tài","s"],["扬","yáng","s"],["槽","cáo","s"],["饶","ráo","s"],["翅","chì","s"],["锌","xīn","s"],["卫","wèi","s"],["察","chá","s"],["窗","chuāng","s"],["潮","cháo","s"],["娥","é","s"],["款","kuǎn","s"],["哨","shào","s"],["鸭","yā","s"],["洋","yáng","s"],["辨","biàn","s"],["大夫","dài fu","d"],["中意","zhòng yì","d"],["长大","zhǎng dà","d"],["便宜","pián yi","d"],["快乐","kuài lè","d"],["行走","xíng zǒu","d"],["归还","guī huán","d"],["首都","shǒu dū","d"],["都市","dū shì","d"],["投降","tóu xiáng","d"],["降落","jiàng luò","d"],["差别","chā bié","d"],["出差","chū chāi","d"],["参差","cēn cī","d"],["照相","zhào xiàng","d"],["好奇","hào qí","d"],["宿舍","sù shè","d"],["舍得","shě de","d"],["血压","xuè yā","d"],["模样","mú yàng","d"],["模型","mó xíng","d"],["转动","zhuàn dòng","d"],["旋转","xuán zhuǎn","d"],["挣扎","zhēng zhá","d"],["扎针","zhā zhēn","d"],["包扎","bāo zā","d"],["堵塞","dǔ sè","d"],["塞车","sāi chē","d"],["薄弱","bó ruò","d"],["薄饼","báo bǐng","d"],["薄荷","bò he","d"],["给予","jǐ yǔ","d"],["卡车","kǎ chē","d"],["关卡","guān qiǎ","d"],["埋怨","mán yuàn","d"],["尽力","jìn lì","d"],["答应","dā ying","d"],["等待","děng dài","d"],["校对","jiào duì","d"],["教书","jiāo shū","d"],["湖泊","hú pō","d"],["停泊","tíng bó","d"],["强大","qiáng dà","d"],["强迫","qiǎng pò","d"],["倔强","juè jiàng","d"],["对称","duì chèn","d"],["称赞","chēng zàn","d"],["到处","dào chù","d"],["人参","rén shēn","d"],["少年","shào nián","d"],["露水","lù shuǐ","d"],["露馅","lòu xiàn","d"],["剥削","bō xuē","d"],["挑战","tiǎo zhàn","d"],["记载","jì zǎi","d"],["载重","zài zhòng","d"],["咀嚼","jǔ jué","d"],["睡觉","shuì jiào","d"]];
+var MEANING={"是":"这，这个，这样；〈表〉解释或分类她 等等","在":"存，生存存；居于，处于，置于 等等","有":"用于某些动词前；占据 等等","他":"称第三人，一般指男性，有时也不分性别；别的，另外的 等等","不":"否定副词：不是，不对；没有","我":"自称，自己；自己的一方分清 等等","人":"能制造工具且能使用工具从事劳动的动；指每一个 等等","也":"副词；文言助词 等等","就":"完成，达到已；进入，开始，从事 等等","年":"时间单位；岁数 等等","你":"称说话的对方","一":"数目字；纯，专 等等","到":"到达，达来，去到","等":"整齐的简册","对":"应答","来":"来到，发生；〈表〉时间，某段时间以后，今后古 等等","又":"再，又一次；几种情况同时存在 等等","而":"但是，却；而且；到，往 等等","之":"到，往由京；代词 等等","道":"供行走的道路","以":"拿，把，用，将；依，顺，按照 等等","她":"女性第三人称","后":"后代，子孙；君王的妻子 等等","去":"离开；前往，由此到彼 等等","但":"只，仅；但是，不过 等等","从":"随行，跟随","月":"月亮；月份 等等","下":"位置低；由高到低；下面 等等","被":"表示被动；覆盖；遭受","于":"介词","时":"一切物质不断运动变化或发展所经历的过；时间的一 等等","多":"数量大；多余，多出 等等","能":"才干，本领；有能力的 等等","出":"从里面到外面；产生，出现；超出 等等","或":"也许；有人 等等","日":"太阳；天，一昼夜 等等","由":"原因；自，从 等等","里":"长度单位1；〈古〉一种居民组织 等等","用":"使人、物等发挥其功能；功能，效果 等等","所":"地方；机关或其它办事的地方 等等","向":"朝着，对着；方位，目标，意志所趋 等等","已":"止，完毕，罢了争论；副词 等等","其":"第三人称代词；指示代词 等等","很":"表示程度高，非常","使":"命令，派遣，支配指；叫，让，令 等等","前":"前面，前方；时间在先 等等","新":"初出现或初产生的；好的，进步的 等等","想":"思索，动脑筋；希望，打算 等等","却":"退退；推辞，谢绝，不接受 等等","它":"他，专指事物或牲口晒的衣服","最":"极，顶；〈古〉聚合 等等","起":"由卧而坐，由坐而立，由下而上等；离开原来的位置 等等","小":"轻视；稍微 等等","高":"品德才能优秀的；敬词有何 等等","如":"像，相似，同样；依照，符合，按照 等等","再":"又一次，第二次；〈表〉事情或动作的重复、继续 等等","才":"刚刚，刚才；才能；仅仅 等等","走":"行，步行；运送，往来 等等","做":"干，工作或活动；制造，制作 等等","让":"不争，尽给旁人；将东西转给别人 等等","内":"里面，内部；内心 等等","及":"到，至，达到自古；赶上，追上还 等等","成":"完成，成就","各":"每个，各个","事":"人的一切活动，自然界；变故 等等","至":"到，到达；极，最，达到了顶点 等等","叫":"呼喊；动物发出声音 等等","两":"数目字；重量单位 等等","三":"数目字；多次 等等","本":"根本，本来；本钱；量词（书） 等等","此":"这，这个，这里","们":"用在代词或指人的名词后，表示复数","家":"家庭，人家，也指有关家庭的；像家庭一样的关系亲如 等等","市":"做买卖的场所；买，交易 等等","门":"建筑物的进出口；形状或作用像门的 等等","吃":"把食物放进嘴里咀嚼咽下；承受，挨 等等","天":"高空；高处，顶部 等等","米":"脱壳的谷类，特指脱壳的稻谷子实；长度单位，旧名公 等等","外":"疏远的，别处的，非正式的；指外 等等","即":"便，立刻，马上立；当时，当前，当地 等等","问":"不知的或不明白的请人解答；审讯，查究，惩办 等等","话":"语言；说，谈 等等","老":"年纪；时间 等等","自":"本人，己身；从，由 等等","副":"相称，符合名；量词 等等","跟":"脚的后部；随，紧接着 等等","笑":"露出喜悦的表情，发出欢乐的声音；指讥笑，嘲笑耻 等等","则":"规则，规律，制度准；榜样，模范以身作 等等","像":"相貌，绘画、雕塑等的图形；相似，仿佛相 等等","较":"比，比较；明显 等等","国":"国家；属于本国的 等等","死":"拼命，不顾性命；不可调和的，誓不两立的 等等","住":"居住；停止，静止","因":"根源，缘故原；由此，由于 等等","元":"开始，第一；基本，根由，根本 等等","手":"人体上肢的末端；做某事的人 等等","达":"道路畅通","该":"应当；〈表〉从推测到必然的或可能的结果她 等等","开":"发掘，辟出，使显露出；发动，发放，操纵 等等","路":"道，来往的通；方向，条理，途径出 等等","军":"武装部；军队的编制单位，它是师的上一级 等等","名":"人或事物的称谓；说出，叫出莫 等等","二":"数目字，一加一","每":"各，任何一个或一；凡是，任何一回 等等","谁":"什么人","受":"接纳；遭到 等等","带":"携带，带领；带子 等等","进":"入，到里面；收入或买 等等","先":"时间或次序在前的；上代，祖宗 等等","县":"省、市、自治区领导下的一级行政区","心":"人和高等动物身体内推动血液循环的脏器；中央，居中的 等等","太":"过于，过分；最，极 等等","点":"小的痕迹；钟点；点心；清点 等等","水":"一种无色无味无臭而透明的液体；河流 等等","张":"将弦安在弓上；乐器上弦改弦更 等等","今":"现在，今天；现代","总":"全，全部，主要的，为首的；聚合，汇集 等等","回":"返，还，归；答复，报答 等等","山":"地面上高度大、坡度陡的隆起地貌；像山的 等等","请":"求，请求；敬词 等等","者":"代词；助词 等等","党":"晦暗不明","段":"锤击","法":"由国家机关制定或认可；规律 等等","连":"连接，相接；联合外 等等","站":"立，定；路途停留或转运的地方 等等","第":"次序；放在数词前表示顺序","共":"同，一样，一道；总，合计总 等等","另":"另外，别的","生":"草木长出、成长；造出，增加 等等","全":"完整，完备，不缺少；整个 等等","快":"将近，接近她；从速，赶紧 等等","经":"正常，常常，常规正；具有典范性的 等等","按":"使用手指头；止住，搁下 等等","找":"觅取，寻求，想要得到你；退回，补还 等等","口":"嘴，人与动物进食的器官；说话 等等","均":"匀，平；同，都，全、皆 等等","字":"记录语言的符；音咬 等等","入":"参加；合乎，合于 等等","真":"的确，实在；清楚，明白 等等","拿":"握，用手取；掌握，把握 等等","城":"城市；城墙 等等","马":"家畜；同类中比较大的 等等","四":"数目字，三加一","书":"写，记载；文字读其 等等","仍":"依旧，还，仍然","西":"泛指欧、美","东":"东方，日出的方向","次":"次序；第二；量词，回 等等","些":"少许，一点儿；〈表〉不定的数量 等等","钱":"货币；费用，款项米 等等","北":"方向，北方","气":"无一定形状，能自由散布的物；呼吸 等等","近":"关系密切，亲密，接近亲；相似，差不多太 等等","杀":"弄死，使失去生命；战斗 等等","清":"干净，洁净；安静，寂静 等等","学":"指学；模仿边看边 等等","既":"尽，完了，终了语未；副词 等等","往":"去，到有来有；从前，过去 等等","原":"水源，源泉水；开始，最初的 等等","美":"好，善；称赞 等等","未":"没有，不曾；在句末〈表〉疑问可以言 等等","杨":"杨树，落叶乔木；姓","兵":"士兵；军队；兵器 等等","非":"不， 不是，不对，越出，不合理；反对，不以为 等等","除":"去掉，除去；不计算在内 等等","位":"所在的地；指职位，地位官 等等","鱼":"一种水生脊椎动物","明":"亮，照亮；清楚，懂得，了解 等等","设":"布置，装置，安排；筹划，规划，制定方案、图样等 等等","州":"旧时行政区划名跨；民族自治行政区划名，在省级之下 等等","直":"公正，正确的道理；爽快，坦率 等等","定":"稳定，安定；决定；必定 等等","越":"经过；爬过，超过，超出 等等","身":"人或动物的躯；自己，亲自自 等等","声":"物体振动时所产生的能引起听觉的；名誉，名望名 等等","五":"数目字，四加一","低":"位置低，跟「高」相对；声音小 等等","坐":"物体下沉或向后施压力这房子；将锅、壶等放到炉火 等等","极":"顶端，最高点，尽头处；最，非常 等等","放":"解脱约束，获得自由；任意，不拘束 等等","金":"金属元素之一；金属的通称 等等","爱":"对人或事物有真诚、深厚的感；喜好 等等","知":"晓得，明了；使知道 等等","主":"最重要的，最基本的，事物的根；掌管，负重要责任的 等等","您":"「你」的敬称","报":"告诉，报告；报答；报纸 等等","类":"种，具有共同特征事物的综合；似，像画虎 等等","早":"太阳升起的时候；时间在先的，以前的 等等","虽":"连词；只，仅有 等等","面":"脸，头的前；直接接触，当着本人在 等等","初":"起始，开端","性":"人或事物固有的特；所具有的能力或作用 等等","型":"铸造器物用的模子；式样，类别微 等等","讲":"谈，说；解释，说明 等等","部":"部分；部门；量词（书） 等等","送":"运输，传递；赠给 等等","反":"不正常，和预想的不同气候；回还，回击，抵制，对抗 等等","指":"用杆状东西的尖端对着；引导，点明，告知 等等","乡":"城市以外的区域，多指农；世代所居住的地方或原籍 等等","方":"四角都是直角的四边形或每个面都是直角；正直 等等","完":"齐全；事毕，了结 等等","常":"纪于太常","意":"心思；心愿 等等","队":"行列；有组织的集体 等等","式":"样子，外表中；规格，标准，楷模格 等等","左":"方位词；思想政治上属于进步的或激进的 等等","花":"种子植物的生殖器官；像花那样的 等等","电":"闪电","条":"细长的枝；细长的东西 等等","剑":"古代兵器","神":"心思，精力，注意力；气色，情态 等等","动":"行动","湖":"陆地上聚积的大","河":"水道的通称；特指黄河 等等","白":"白颜色","官":"政府机关或军队里担任职务并有一定级别；属于国家的或政府的 等等","师":"指老师，导师教；由师徒关系而产生的 等等","仅":"只，不过","变":"变化，改变","图":"画画影；用绘画表现出来的形 等等","平":"不倾斜，无凹凸，无高低起；均等，公正 等等","府":"官署的通称，现指国家政权机关；旧指贵族或高级官员的住宅 等等","热":"使温度升高将；盛，旺 等等","制":"规定，拟定；禁止，限定，约束，管束 等等","望":"向远处看，看得见；拜访 等等","岁":"年，时间，光阴；计算年龄的单位 等等","建":"设立，创立；修，修造 等等","命":"生命，生物的生活能力；上级对下级的指 等等","加":"把两个以上的数目或东西合在一起三；增多，增大或增 等等","管":"吹奏的乐器，有笙、箫、笛等，统称管；中空圆筒形的器物 等等","穿":"穿通，穿破","众":"多，许多；许多人 等等","黑":"暗，昏暗，光不足；恶毒，反动 等等","怕":"畏惧；也许，〈表〉怀疑或估计天 等等","风":"流动着的空气，多是大致与地面平行；借风力吹干的 等等","信":"诚实，不欺骗；确实，可靠，不怀疑 等等","置":"搁，摆，设，安放；弃，放弃弃 等等","急":"迫切，紧要；焦躁 等等","黄":"像油菜花或向日葵花的颜色；事情失败或计划不能实现此事 等等","镇":"压，压制，慑住；安定 等等","取":"拿，得到；采用，选用，接受 等等","光":"光线，照亮物体因而可用眼睛看到物体的；荣耀，荣誉，耀眼的 等等","竟":"完毕，终了看书既；整，从头至尾 等等","力":"能量，效能；用极大的力量 等等","曰":"说孔子；叫做 等等","深":"从面到底、从外到里；时间久 等等","脸":"面孔，头前部由额到下巴；脸的表情 等等","买":"用钱换东西","接":"连，连着；挨近，碰着，交往 等等","茶":"茶树的嫩叶，可制饮料；茶水","且":"连词；副词 等等","办":"办理","文":"事物的纹理或形象，线条交错的图形；刺画花纹 等等","忙":"事情多，没有空闲；急迫，急着做 等等","郡":"古代的行政区域","刚":"副词；副词 等等","级":"等次；台阶 等等","故":"意外的事情突然；事中原遂多 等等","言":"话语；讲，说 等等","海":"靠近大陆比洋小的水域；大湖或大池的名称 等等","座":"坐位；托着器物的垫子 等等","酒":"用粮食或水果发酵制成的饮料","满":"足，够，符合心；充实，没有余地 等等","李":"李树","飞":"鸟类或虫类等利用翅膀在空中活动小鸟群；快，极其迅 等等","流":"水或其它液体移；漂泊，移动不定 等等","德":"登高，攀登","瞧":"看","右":"方位名；面向南时，西方为右 等等","亦":"也，也是","改":"变革，更换；纠正 等等","刀":"古代兵器名","破":"碎，残缺，不完整；劈开，分裂 等等","龙":"〈古〉传说中的一种神异动物，有鳞；〈古〉生物学上指一些早已绝灭的巨大爬 等等","需":"要求，应该有，必须有；必须要用的物资 等等","宽":"松缓，放松；富裕 等等","必":"一定，必定；必须","病":"疾病；缺点，毛病 等等","随":"跟着，沿着，顺着；顺从，任凭 等等","须":"必须，应当；胡须 等等","呈":"显出，露出；恭敬地送上 等等","汉":"朝代名；男子，男人 等等","群":"〈古〉指羊群；聚集，会合 等等","算":"核计，计数核；计划，筹谋打 等等","战":"打仗；发抖，极其害怕 等等","眼":"眼睛，视觉器官；孔洞，窟窿窗 等等","安":"安定","靠":"倚着，挨近，接近倚；依赖，仗持依 等等","项":"颈子的后部；事物的分类或条目 等等","首":"头头，最大的；领导人 等等","掌":"手心，手的里面；脚底 等等","街":"四路相通的大道","铁":"金属；〈喻〉坚固，坚硬、坚强，坚定铜墙 等等","物":"东西；内容，实质言之有 等等","林":"成片的树木或竹子等；指林业 等等","土":"沙泥等的混合；地域 等等","菜":"蔬菜","现":"显出，出现，显露表；目前，现时 等等","火":"物体燃烧时所发的光和焰；焚烧 等等","桥":"桥梁","股":"大腿，从胯到膝盖的部分弹中其；事物的一部 等等","象":"现存的陆地上最大的哺乳动；形状，样子形 等等","古":"〈古〉诗体","跳":"两脚离地蹦、跃；越过 等等","某":"代词；谦词 等等","惊":"骡、马等因受吓而发狂乱奔控制；意料以外的感 等等","搞":"做，弄，办","药":"治病的物品；有某些作用的化学物品 等等","双":"一对，两个；加倍的 等等","情":"喜、怒、哀、乐等心理状；状况，状态 等等","鄂":"湖北的简称；姓","掉":"落下，脱落；丢失；掉转 等等","立":"做出，定出；缔结，制定，决定 等等","乱":"无秩序，无条理；骚扰，战争动 等等","周":"环绕，循环绕场；圈子，四围圆 等等","承":"捧着","村":"村庄","收":"接到，接受，接纳；聚集，合拢 等等","半":"一半，二分之一","九":"数目字，八加一；时令名 等等","活":"谋生，手艺，工作；产品这批 等等","敢":"有勇气，有胆量；谦词 等等","余":"我，我的；剩下的，多出的 等等","获":"得到，获得；收割 等等","兼":"几方面都有或几方都照顾到；加倍 等等","十":"数目字，九加一；完全，到了顶点 等等","特":"不普通的，超出一般的；专，单一 等等","船":"水运工具","顶":"头的最上部；从下面支撑；量词 等等","断":"分成两段；断绝，停止；判定 等等","毛":"动植物的皮上所生的丝状物；特指头发 等等","吴":"〈古〉大声说话不；周代诸侯国名，在今江苏省南部 等等","形":"样子；体，实体 等等","线":"棉、麻、丝、毛；像线的 等等","忽":"不重视，不注意莫；突然，很快 等等","七":"数目字，六加一","久":"时间长天长日；经过的时间 等等","史":"自然或社会以往发展的进程；〈古〉负责记录史事的官 等等","辖":"车上的部件，用于挡住车轮，不使脱落；管理 等等","英":"花秋菊之；杰出的，超众的 等等","卖":"背叛，出卖；尽量使 等等","血":"血液；同一祖先的 等等","画":"图画；用笔描绘 等等","轻":"数量少，程度浅工作；用力小 等等","皆":"都，全","治":"管理；处理，惩处、医疗、研究等 等等","权":"掌握、支配和指挥的力量；权利 等等","哭":"悲痛出声，声泪俱下","记":"用文字写；描写事物的书、文章或文体 等等","男":"男性，男人；儿子 等等","八":"数目字，七加一","喜":"高兴，快乐；爱好 等等","伤":"受到损害、损坏受；损害，妨碍 等等","架":"用做支撑或存放物件的东西；支起，搭起 等等","归":"回，返，回到；趋向 等等","退":"使向后移；离开，辞去 等等","游":"在水里行动，在水上漂浮，泛指游；河流的一段 等等","实":"内部填满，实心；真实；果实 等等","姓":"标志家族系统的字","朱":"大红","网":"用绳线结成的渔猎工具；形状像网的 等等","皮":"动物或植物体表的组织；用皮制作的 等等","睡":"睡觉；躺下","选":"择，挑拣；被选中了的 等等","科":"类别；法律条文作奸 等等","关":"闭，合把门；门闩拔 等等","骂":"用粗野的话侮辱人；用严厉的话斥 等等","院":"房屋围墙里面的空地；某些机关、单位和公共场所的名称 等等","含":"嘴里放着东西，不咽下去，也不吐出来；带着，心里怀着 等等","机":"〈古〉弓弩上发射箭的机关操弓；关键，要点生 等等","装":"装饰，打扮；安装；服装 等等","理":"条纹；事物的原由、规律、原则 等等","驻":"停留，驻扎","产":"生育；生产；财产 等等","领":"脖子；衣服上围绕脖子的部分 等等","块":"成片、团或疙瘩状的东西；〈古〉孤独 等等","怎":"怎么，如何","封":"加土培植树木此类树需多；闭，密闭，关闭 等等","谈":"说，对话言；言论 等等","诸":"各，众，许多","团":"圆形；聚集，联合；团体 等等","肉":"人或动物附着在骨骼上的柔软物质；果实的可吃部分 等等","期":"规定的时间；一段时间 等等","岛":"江、湖、海洋中被水所包围而比大陆要小","代":"代替；时代；辈分 等等","短":"不长","旧":"过去的，过时的；使用久的 等等","嘴":"口的通称；形状像嘴的东西","挂":"悬，悬吊；牵绊，勾住，惦记牵 等等","留":"停止在某处；注意力集中在某事物上 等等","民":"〈古〉指奴隶或没做官的众百姓；指人或人群 等等","敌":"敌人；对抗；相当 等等","京":"国都，首都；特指我国的首都北京 等等","诗":"文体","愿":"乐意；希望 等等","墓":"坟墓","世":"一生，一辈子人生；父子相继为一 等等","举":"抬起，向上托；提出 等等","殿":"宫殿；寺庙里供奉神佛的大殿","帮":"帮助；集团，帮派 等等","抓":"搔，挠；使用手或爪拿 等等","换":"相互对调；改变，更改变 等等","件":"量词；指可以论件的事物 等等","求":"寻找，想办法得到；恳请，乞助 等等","房":"室，屋；像房间的莲 等等","宫":"房屋，又专指帝王的住所；有些文化娱乐场所的名称 等等","云":"水蒸气上升遇冷凝集成水滴或冰晶；说人 等等","错":"用金涂饰，镶嵌","牛":"家畜，反刍类动物；星宿名 等等","拜":"古代表示敬意的一种礼节","饭":"熟的谷物食品，多指大米饭这；进食，定时吃的食品能 等等","推":"抵住物体并用力使它移；用工具向前移动进行工作 等等","状":"样子，形态，情形；陈述，描绘自 等等","复":"返，回去往；回答，回报 等等","克":"胜任","救":"帮助，援助，使脱离困境或危","楼":"两层及两层以上的房屋；建筑物有上层结构的 等等","胜":"胜任，禁得起","具":"器物；准备，备有，完备 等等","层":"楼房","集":"聚，合，会合，总合；多篇著作汇编成的书短篇小说 等等","章":"音乐的一曲，诗歌文词等的段落；封建时代呈给皇帝的奏本 等等","届":"至，到达；次，期上 等等","木":"树栽植；指木料，砍下的成材的 等等","怪":"奇异，不常见的；神话、传说或迷信者所谓的妖魔 等等","江":"泛指大的河流","抱":"用手臂围住","职":"分内应做的或所担任的事情；在工作中的位置或地 等等","拍":"用手掌；乐曲的节奏 等等","交":"付给，付托；互相，相互关 等等","表":"外衣","营":"经管，料理经；谋求 等等","田":"种植用的土地；跟农村有关的 等等","修":"装饰，使完善或恢复完；整治，建筑 等等","考":"老，年纪大","员":"在工作或学习的人；团体或组织中的分子 等等","银":"化学元素，金属，白色有光泽；［银子］旧时以银鋳成块状的一种货 等等","欲":"想要，想得到，想达到；希望，愿望 等等","何":"疑问词；副词 等等","停":"止住，止息；中断 等等","界":"地域的相交处；范围 等等","紫":"红与蓝合成的颜色万","刘":"杀，戮","善":"友好，和好友；做好，办好 等等","香":"指有香味的东西；舒适，受欢迎睡得可 等等","晚":"日落的时候；夜间 等等","吨":"重量单位","亚":"次，第二的；较差我不 等等","列":"排队，摆出，安排；行列 等等","质":"本体，本性物；朴实 等等","铜":"金属名，古称赤金","词":"言词","暖":"温和，不冷也不热；使温 等等","感":"觉得；外界事物在意识、情绪上引起的反映 等等","凭":"靠着；依靠，仗持，依据全 等等","紧":"收束把腰带；密切，靠得极近 等等","题":"写作、讲演等的总名；练习、考试等要求解答的问 等等","臣":"男性奴隶","油":"油水","球":"美玉","守":"保卫，卫护；看护，等候 等等","俄":"倾斜","功":"成绩突出，贡献大；成就，成效获得 等等","端":"站得直","公":"正直，合理；共同的，大家认可的，大家适用的 等等","义":"公正合宜的道德、道理或行为；意思，含意意 等等","攻":"深入钻研、学习；批评，指责 等等","陈":"地名","礼":"尊敬或客气的态度、动作；适应社会的道德观念和习俗形成的仪式 等等","青":"颜色；深绿色的东西，多指嫩苗的庄稼 等等","引":"导，领，率领；拉，牵 等等","投":"抛，掷，扔；跳进 等等","目":"眼睛；看众 等等","树":"木本植物的总称；种植，栽培，培养 等等","寺":"〈古〉中央机构名或官署名；佛教、伊斯兰教等居住或进行宗教活动的 等等","墙":"房屋或园场周围的障壁","颇":"偏，偏差偏；很，稍微，相当的 等等","尚":"尊崇，注重，提倡；还其 等等","凡":"所有的，总共，总计；平常，寻常平 等等","邦":"古代诸侯的封国、国家","根":"高等植物的营养器官之；量词 等等","枪":"长矛；发射弹丸的武器 等等","运":"转动，移动；输送，搬送 等等","值":"遇到，碰到；价格，价钱价 等等","港":"与河、沟相通的水渠汊道；可以停泊大船的江、海口岸 等等","响":"声音；发出声音 等等","势":"力量，权力，威力；力量的趋向 等等","鬼":"阴险，奸诈，不光明；机灵，多指小孩或对小孩的爱称 等等","批":"〈古〉用手打；对文件、文章等写上字句 等等","包":"用纸、布等裹起来；包裹；容纳 等等","替":"代，代理；为，给 等等","司":"主管，掌管；政府机关名称 等等","旁":"边，侧；另外，其他 等等","夏":"一年四季里的第二；中国的古称 等等","招":"用手势叫人来或向人致意；用公开的方式使人 等等","武":"搏斗，殴打；勇猛，勇敢英 等等","冒":"上升，外透；顶着，向着 等等","族":"有一定血统关系的人群之总称；指民族，种族中华 等等","贴":"粘附；挨近，紧靠 等等","硬":"刚强有力；固执 等等","利":"使得到好处毫；顺当的，与愿望相合的 等等","坛":"土筑的高台，用于祭祀、会盟等","冷":"寂静，不热闹；少见的 等等","玉":"一种珍贵的矿石，质细而坚硬，有光泽；敬词 等等","腿":"胫部，股部，下肢小；指腌制的猪腿 等等","保":"背子于背","照":"光线射；对着镜子或其它反光的东西 等等","御":"驾驭车马；驾驭，控制安上 等等","易":"好办，不费力；平和 等等","贼":"匪盗，偷东西的人；严重桅国家和人民的坏人乱臣 等等","妈":"母亲；对女性长辈的称呼，也用作对中 等等","宋":"周代诸侯国名，在今河南省商丘一带；朝代名 等等","专":"独，独有，独占；单纯，单一，集中在某一方面 等等","熟":"煮熟，食物烹煮到可吃的程度","计":"算，算帐，核算；测量或检算度数、时间等的仪表 等等","忘":"不记得；忽略，遗漏 等等","赴":"奔向，奔赴","射":"拉弓放；用推力或弹力发出子弹等 等等","乃":"你，你的；于是，这才河水浅 等等","巴":"大蛇","支":"撑持；从总体分出的部 等等","厚":"扁平物体，相对应两个平面的距离长；深，重，浓，大莫负 等等","烧":"使物体着；用热能使物体受热起变 等等","微":"细，小；少，稍稍 等等","虎":"通称老；〈喻〉勇猛，威武 等等","布":"麻布","升":"容量单位；量粮食的器具拿 等等","依":"靠着，仗赖；按照 等等","苦":"灾难，艰难，劳累；为某种事物所 等等","绝":"断，隔断；完，完全，穷尽气 等等","翻":"反转，歪倒，上下、内外移位；改变原先的 等等","逃":"逃走，逃跑；避开，躲避 等等","唐":"夸大，虚夸；空，徒然 等等","春":"春季，四季的第一季；生机 等等","闻":"听耳；消息，听说的，听见的 等等","略":"计谋；掠夺，夺取侵 等等","甲":"天干的第一位；动物护身的硬壳 等等","楚":"灌木名","喊":"尝味","份":"量词；用于年、月、省等的后面 等等","班":"分割玉","怒":"生气，气愤；气势强 等等","孙":"儿子的子；孙子以后各代 等等","绣":"用彩色的丝线、棉线等在布；刺绣品 等等","版":"筑墙的夹板","坏":"损伤，被毁碗；在动词或形容词后面〈表〉程度深 等等","组":"〈古〉丝带，编织织；结合，构成 等等","轮":"安在车上、机器上，能旋转并促使车；形状像轮的月 等等","哥":"兄，同父母或同辈而年龄比自己大的男子；尊称年龄跟自己差不多的男子 等等","决":"排除阻塞物，疏通水道；决定犹豫 等等","显":"露在外面，易于看；表现 等等","室":"房屋；工作部门 等等","业":"事情，所从事的工作；生产或经济部门 等等","庙":"供奉祖先、神佛或历史上有名人物的住所；〈古〉朝廷、帝王处理政事的地方 等等","素":"没有染色的丝绸；颜色单纯，不鲜艳 等等","扑":"拍，轻打；冲，猛打郁香 等等","赶":"追你追我；驱使，驾驭，驱逐 等等","迎":"接，热情接待；向着，对着 等等","宝":"珍宝","果":"果子，果实，某些植物花落后；结局，成效结 等等","贵":"地位高或权势大，也指这类的人或集团；重视，崇尚兵 等等","炒":"煎炒，火干","闹":"嘈杂，喧扰","抬":"举，提高，使上升；两人以上合力搬物 等等","齐":"一致，不乱，一同，等同；全，完全 等等","盐":"盐类，化学上的中性化合物","星":"天空中能看见的有亮光的天体；微小或细碎的东西 等等","客":"〈古〉称寄食于贵族豪门并为他们服务的；寄居在外的 等等","摆":"撇开","借":"经同意，暂时使用不属于自己的财物；暂时将财物给别人使 等等","负":"遭受；仗恃，依靠 等等","击":"打，敲打；攻打 等等","戴":"增益","细":"精致；周密 等等","呆":"傻，不灵活；停留，待着","奉":"两手捧着臣愿；恭敬地接受，遵从，遵守 等等","唱":"领唱","毒":"毒草滋生","味":"舌头尝东西或鼻子闻东西所得到的感觉；辨别味道 等等","始":"起头，最初，当初开；才，方才事毕 等等","亮":"明亮","套":"加罩，罩在外面的东；装在衣物里的棉絮或绒毛等 等等","步":"行走","仙":"仙人；轻松，自在行迟更觉 等等","雪":"从天上落下的白色结晶物；揩，拭，洗刷 等等","倍":"跟原数相等的增加量；加倍","耳":"耳朵","忌":"嫉妒，憎恨妒；怕，顾虑，畏惧 等等","核":"果核","纵":"发，放；放任，无拘束 等等","器":"用具；气度，才能 等等","藕":"莲的地下茎，肥大而长，有节","玩":"游戏，做某种；不认真的 等等","练":"白色的熟绢江平如；把丝麻或织品煮得柔软而洁白 等等","罪":"犯法，犯法的行为；刑罚 等等","距":"距离，离开两地；鸡爪 等等","寨":"防卫用的栅栏；〈古〉指军营安营 等等","厅":"聚会或宴会等用的大房间；政府机关的办事单位或工作部门 等等","叹":"因忧闷悲痛而呼气出；因高兴而发出赞许或赞美的长 等等","恨":"遗憾，不满意；怨，仇视怨 等等","斯":"指示代词；连词 等等","吹":"合拢嘴唇用力呼气","虚":"大土山","够":"足，一定限度上的满足；达到一定的程度、标准 等等","讯":"问，询问，特指审；音信，消息音 等等","弦":"弯弓上发箭的绳，一般用牛筋制成；半圆的月亮 等等","环":"玉圈她手上带有碧；圈形的东西 等等","精":"专心，用功深；聪明，机警，能力强 等等","户":"人家；户头 等等","挥":"摇动，舞动；散出，甩出 等等","爬":"上下肢伏地行走，虫类；攀登 等等","奏":"作乐，按照曲调吹打乐器；呈现，取得 等等","持":"拿着","亿":"安宁","夜":"从天黑到天亮的时间","源":"水流开始流出的地方；事物的开始，根由起 等等","围":"环绕，圈拦住；四周 等等","局":"局促","懂":"明白，了解","存":"生存","秒":"谷物种子壳上的芒；单位名称 等等","念":"惦记，常思常想；想法 等等","娘":"母亲；称长一辈的或年长的已婚妇女 等等","插":"刺入、挤放进去","献":"恭敬、庄严地送；表演，出主意 等等","境":"边界，疆界边；境地，处境环 等等","密":"精致，细致精；亲近，感情好 等等","竹":"多年生常绿植物；称箫管类的乐 等等","僧":"和尚","酸":"像醋的味道或气；微痛乏力腰 等等","烟":"物质因燃烧而产生的气体","超":"跃上","苏":"假死或昏迷后醒过来死而；指江苏或苏 等等","蛋":"鸟类等下的卵；形状像蛋的东西","隔":"拦断，互不接触，分开；相间，距离 等等","商":"买卖，做生意，也指做生意的；交换意见，讨论 等等","排":"摆成；编排成形的东西 等等","堂":"〈古〉宫室；正屋，高大宽敞的房 等等","盘":"扁而浅的盛器钢；形状或功用像盘子的 等等","皇":"传说中远古的帝王；君主 等等","圆":"在平面上，定点和定距离的动点之轨迹的；像球形的 等等","争":"夺，力求得到，互不相让；不同意见相 等等","偏":"不全面，不正确，不公正；最，特别此处的河水 等等","顾":"回头看","狗":"家畜，犬","尔":"窗格花纹","鸡":"家禽名","湘":"湘江；湖南的简称","脱":"离开，落掉；遗漏 等等","撞":"敲击；碰，闯 等等","工":"工人；工业 等等","帝":"花蒂","篇":"首尾完整的文章著作；量词 等等","挺":"笔直；伸直 等等","犯":"抵触，违反；有罪的 等等","波":"波浪，水自身涌动而成波动的水面","告":"用语言或文字让人知道；检举别人，提起诉讼 等等","罗":"捕鸟的；张网捕捉 等等","软":"柔和，温和；懦弱 等等","千":"数目十个百为；〈表〉众多，极大 等等","纸":"量词","试":"按预定想法非正式的；检验，品尝 等等","然":"是，对以为；如此，这样当 等等","梦":"睡眠时局部大脑皮层还未停止活动；指做 等等","松":"松科植物的总称","辽":"遥远","旗":"用布、绸、纸等做成的标帜；清代初期将满族军队和成员编为八旗◇又 等等","痛":"疼疼；悲伤，苦恼难受 等等","准":"允许，许可；依照，按照 等等","志":"心意，意向，决心；记，记住博闻 等等","失":"丢，掉丢；疏忽，错过，过错 等等","害":"灾患；有损害的 等等","陪":"伴随","啥":"什么（方言）","致":"给，送达；招引，引来 等等","基":"建筑物的根脚；根本，根底 等等","证":"以人物、事实来表明或断定；凭据，帮助断定的东西 等等","躲":"避开，藏起来","确":"坚固","逼":"接近，靠近","政":"政治，它是经济的集中表现；属于政治的 等等","烤":"用火把东西烘干或烘；靠近火取暖 等等","舰":"大型的战船","社":"〈古〉迷信指土地；指某些集体组织、团体、机构 等等","钟":"一种金属制的响器，中空，悬挂在架上；计时器 等等","咬":"用牙齿夹住或夹碎东西；攀害别人不准 等等","糖":"食用糖及糖制食品的统称","劝":"讲明事理，使人听从；勉励，奖励 等等","宜":"适当，合适适；应该，应当事 等等","腰":"身体的中部，胁下胯上的部分；裤、裙等围腰的部分 等等","灭":"熄，熄火；使不存在 等等","箭":"竹名","寻":"找，探求；随即，不久 等等","躺":"身体横卧让他；物体横倒这儿 等等","襄":"帮助；高，升到高处巨石连 等等","恩":"恩惠","跪":"屈膝，单膝或双膝着地，臀部抬起，伸直","遇":"碰到，会见，相逢；对待，款待待 等等","谷":"庄稼和粮食的总称；两山之间的夹区或流水道 等等","猛":"力量大，气势壮；凶暴 等等","印":"图章，戳记；痕迹手 等等","异":"不同，不同的；别的，另外的 等等","拖":"拉，拽，牵引；延迟，拉长 等等","粮":"可吃的谷类、豆类等；农业税踊跃交 等等","韩":"井垣","灯":"置烛用以照明的器具","抗":"抵挡，抵御；相当，抵得过 等等","伸":"舒展","店":"栈房","阳":"指太；明亮，温暖多 等等","阵":"作战队伍的行；量词 等等","兄":"哥哥；敬词 等等","帐":"用布、纱、尼龙等做成的帷；钱财出入的记载 等等","编":"顺次排列，编结在一起","智":"聪明，有见识","沿":"顺着，照着；靠近 等等","暗":"昏暗","灵":"有效；聪明，机敏，敏捷 等等","百":"数词","遭":"逢，遇，碰到；量词 等等","移":"搬动，挪动；改变，变化，动摇 等等","砍":"猛劈","郭":"城外围加筑的一道城墙；物体的四周周 等等","养":"抚育，供给；生育，生小孩 等等","胡":"〈古〉我国西北地区的民族之统称；乱，无理 等等","呼":"喊，叫唤；像声词北风刮得 等等","托":"用手掌承着物品；承托东西的器具 等等","宗":"旧指宗庙，祖庙；家族，同一家族的 等等","仗":"执，拿着","艘":"船的总称","补":"补衣服","吾":"吾，我自称也","笔":"毛笔","费":"消耗，花掉；费用，为某种需要所使用的款项 等等","柄":"器物的把儿","瓦":"覆盖屋顶的东西，多用陶土烧成；陶土制作烧成的 等等","败":"毁坏，搞坏","拱":"两手在胸前相合成拳状，〈表〉敬意低头；两手合围此树 等等","毕":"打猎用的有长柄的网","床":"坐卧的器具","止":"停住；禁，阻住禁 等等","牌":"用作标志、凭信物等的板；商标雪花 等等","爹":"父亲","碗":"盛饮料、食品等的器皿；像碗的东西 等等","爷":"对同辈或年长男人的敬称；旧时对有权势或对有钱财之人的称呼 等等","魔":"神秘，奇异","君":"〈古〉指帝王，诸侯；封建时代的一种封号春申 等等","孔":"小洞，窟窿针；通山间有 等等","洲":"水中的陆地；大陆及其附属岛屿的总称 等等","奖":"劝勉，勉励当；称赞，表扬夸 等等","夺":"丧失","猪":"家畜，肉用动物","搭":"打，击","扶":"搀，用手支住、按着或把持着使不倒；帮助，援助，培植 等等","赵":"快走","联":"连结，结合；对子，对联贴 等等","穴":"岩洞，土室，窟窿；坟墓 等等","虫":"昆虫的通称","莫":"不要，不能闲人；无，没有 等等","造":"做，制作制；建设 等等","登":"上车","增":"增多","戏":"玩耍；嘲弄，开玩笑 等等","歌":"能唱的诗、词语诗；唱，咏 等等","绕":"缠束","毁":"瓦器缺损","防":"戒备，预置；堤坝，挡水的建筑物 等等","尖":"物体末端锐利或细小；声音高而 等等","踢":"用脚触击","父":"爸爸；对男性长辈的称呼 等等","塔":"佛教特有的一种尖顶高耸建筑物；形状像塔的设备或建筑物 等等","弱":"不够，差一点儿四分之三；〈古〉年少方 等等","雕":"大型猛禽","羊":"哺乳动物，反刍类","肯":"愿意他；同意，许可首 等等","母":"娘，妈妈，母亲；称呼女性长辈 等等","脑":"形状或颜色像脑的","视":"看待，看作轻；观察，察看 等等","枚":"树干；〈古〉士兵衔在嘴里的竹块或木片 等等","婚":"男女结成夫妻","滑":"光溜，不粗涩；溜动 等等","雄":"宏大，伟大的；杰出的，强有力的 等等","输":"运送，注入运；送给，捐献 等等","许":"应允，认可；称赞 等等","闯":"猛冲，突然直入","捧":"两手托着；奉承，替人吹嘘 等等","福":"幸福，福气","案":"长方形的桌子；记事的或儲存备查的文件 等等","顺":"沿，循，依次；随，趁便 等等","闪":"天空的电；转侧身体躲 等等","震":"急速或剧烈地颤；惊恐，害怕或情绪过分激 等等","迁":"搬移，换地点；改变 等等","课":"学校里教学的科目、进程；督促完成工作任务宜严 等等","挖":"引申为探索","灰":"物质燃烧后剩下的粉末；尘土 等等","袁":"姓","搬":"挪动","扯":"撕裂","丢":"遗失，扔掉；搁置 等等","独":"单独","跨":"抬起一条腿越过、向前或往旁边移动；超越两者之间 等等","施":"实行，展示，发挥；用上，加上 等等","秋":"一年四季中的第三；年千 等等","陵":"大土；升，登 等等","授":"给，予，任命；教，教导 等等","糕":"用米粉、面粉等为原料制成的一种食品","斜":"歪，不正","秦":"周代诸侯国名，战国时七雄之一；朝代名 等等","擦":"摩擦","瞎":"眼睛看不见；胡乱，盲目地 等等","亭":"亭子，一般是圆顶或多角形无墙的建筑物；亭式的或结构简单的小屋子 等等","注":"记载，登记；以文字解释词句 等等","镑":"英国的货币单位","尼":"亲近，亲昵","临":"从高处往低处看居；到，遇到身 等等","护":"保卫，照顾","丝":"蚕吐出的纤维；像丝的东西 等等","温":"暖，不冷不；和气，柔和 等等","醒":"睡完觉或未睡着；酒醉后或昏迷中恢复常态 等等","演":"水长流","赛":"比较好坏、强弱、胜负比；胜似，比得上一年 等等","抽":"拔出，抽出","屋":"房子；房间 等等","氨":"氮和氢的化合物，无色气体","旨":"意义，意图，目的意；味美甘 等等","例":"可以作为仿照或依据的事物；规定，成规条 等等","跃":"跳跳","料":"估计，猜想；指材料，可用来制造其它物品的物质 等等","牙":"指牙齿；形状像牙齿的二十个 等等","廊":"有覆盖顶的过道；屋檐下或屋内的过 等等","透":"穿过，通过；显露，泄漏，暗中告诉白里 等等","滚":"水流翻腾；旋转着翻动或急速翻腾 等等","蓝":"蓝色，像晴空那样的颜；蓼蓝，一年生草 等等","亩":"中国土地面积市亩的通称","舞":"按一定的节奏转动身体；挥动 等等","审":"周密，详细；确实，果然 等等","旅":"古代军队五百人为一旅","配":"两性结合；牲畜交 等等","摇":"摆动；转动 等等","杯":"盛酒、茶或其他饮料的器皿","富":"壮，盛年","狼":"野兽之一，形状像狗，但嘴较尖；［狼狈］ 等等","荆":"落叶灌木，掌状复叶或单叶","音":"声声；消息 等等","鼓":"一种击打乐器，多为圆柱形，中空；曲艺 等等","珠":"样子像珍珠的东西","袭":"乘人不备而攻；因循，继承，照样做 等等","附":"外加，随带；靠近 等等","慢":"懈怠，轻视，态度冷淡","睁":"张开眼睛","废":"停止，放弃；荒芜，衰败荒 等等","愈":"病好了","容":"盛，包含；原谅，对人度量大 等等","颁":"脑袋很大的样子","嘉":"好的，美好的；表扬，赞美值得 等等","思":"想，考虑；想念，怀念 等等","赤":"火的颜色，即红色","征":"远行；讨伐，用武力制 等等","拔":"拔起，拔出","蜀":"周代诸侯国之一，在今四川省成都一带；朝代名 等等","尤":"更，特别，格外；优秀的，突出的人，动物之 等等","顿":"叩头，磕头","粗":"糙米","俺":"我（方言）","丹":"辰砂，朱砂","严":"紧密，没有缝隙；认真，不放松 等等","吉":"吉祥","偷":"窃取，暗中拿取，也指窃取东西的；瞒着人 等等","寄":"依靠，依附；托付，委托 等等","叔":"丈夫的弟弟；父亲的弟弟 等等","歇":"休息；停止，停息 等等","锅":"煮炒食物等的器具；像锅的 等等","吸":"引取，摄取，采纳","煤":"烟气凝结成的黑灰锅","辆":"量词，用于车","闭":"关门，把门合闭起来","钢":"经过精炼的铁","刻":"雕，刀子挖，铁笔划；苛求，虐待，不厚道尖酸 等等","认":"识别，分辨；承担，接受，允许，同意承 等等","妖":"〈古〉称一切反常的东西或现象天反时为；打扮奇特，神态不正派 等等","缺":"残破；短少，不够 等等","谢":"感激；道歉，认错 等等","煎":"熬煮；将食物放在少量的热油里使熟 等等","脊":"人或动物背部的中轴骨骼；物体中间高起像脊的部分 等等","吻":"嘴唇；用嘴唇接触〈表〉喜爱 等等","尸":"死人的身；〈古〉祭祀时代〈表〉死者受祭的人 等等","柳":"落叶乔木或灌木，枝条细长柔韧；星宿名 等等","税":"田赋，征收的农产品","聚":"集合，会合；〈古〉村落，居民点 等等","豆":"古代一种盛食物的器皿","赢":"获利，利润；获得，得到 等等","堆":"土堆","额":"额头，脑门","轿":"轿子","抵":"挤，推","俘":"俘虏；擒获","静":"没有声响；安详平 等等","限":"定范围；指定的范围 等等","鸿":"大型雁类的泛称","摔":"用力扔；掉下花瓶 等等","积":"堆积谷物农收；长时期造成的 等等","棒":"棍，杖","针":"缝、补衣物时引线用的一种细长的工具；形状像针的东西 等等","士":"〈古〉指男子，特指未婚男子以谷我；我国商、周时代贵族的最低一级 等等","伏":"趴，脸面向下，身体前屈；隐藏，隐匿埋 等等","赏":"赐，奖，给予；奖赐的物品有 等等","避":"躲开，回避","佳":"美，好","岩":"高峻的山崖千；险峻，险要 等等","役":"战事；从事军务 等等","沉":"没入水中","阁":"楼房的一种，一般两层，周围开窗；旧称女子的卧房 等等","捉":"抓，逮捕","探":"掏，摸取；测量，寻求，研究 等等","沟":"田间的水沟，泛指小的流水道；类似沟的 等等","垂":"边疆","纯":"〈古〉指丝；单一，不杂 等等","赐":"赏赐","斩":"古代死刑的一种","幅":"幅面，布、绸、呢绒等的宽度；边缘 等等","猜":"疑恨","终":"毕竟，到底；尽，全，从开始到末 等等","票":"可作凭证的纸片；货币 等等","粉":"细末；使破 等等","继":"接着，连续；继承 等等","沪":"上海的简称；捕鱼的竹栅 等等","欧":"欧洲的简称；姓","掷":"扔，抛","徐":"慢步走","休":"歇息，养息；停止，完结 等等","样":"形状；种类这 等等","彩":"文采，文章才华","嫁":"女子结婚她今天；转移，推卸转 等等","壁":"墙壁","阴":"暗中，凹进的，不外露的；云遮挡着太阳或月亮、星星 等等","穷":"生活、处境困难；尽，完结理屈 等等","俱":"全，都；在一起行则与 等等","矿":"蕴藏在地层中可供开采使用的自然资源；开采矿物的场所 等等","砸":"打，捣；打坏，打破 等等","备":"谨慎、警惕","矣":"语气词","胸":"人和动物躯干的一部分","递":"轮流","庆":"可棕的事佳","品":"物品；品质；品尝 等等","扔":"抛，掷；丢弃 等等","握":"拿住，抓在手里；量词一 等等","煮":"把东西放在有水的锅里加热使熟","挤":"用力压使排；想法子腾 等等","峰":"高而尖的山头；像山峰的东西 等等","拥":"抱，持；围着 等等","谱":"记载事物类别、系统等的表册或书籍；记录音乐、棋局等符号 等等","讨":"征伐，发动攻击；查究，整治检 等等","货":"商品","议":"商议，讨论","亡":"失去，丢失唇；死，死去的 等等","影":"人或物挡住光线所产生的阴暗形像；照片，形像 等等","执":"拘捕","盗":"盗窃，偷东西","统":"丝的头绪抽其；事物的连续或彼此相连的关系 等等","筑":"筑墙","冰":"水冻结而成的固体","撤":"撤去","忠":"忠诚无私，尽心竭力","曹":"姓","碎":"完整的东西破裂成小块、细片破；零星，琐屑 等等","纲":"鱼网上的总绳网之","娶":"男子结婚","杂":"不单纯的，各种各样的；渗入，混合搀 等等","跌":"失足摔倒","尊":"敬重；地位或辈分高 等等","妙":"美，好；奇巧，神奇奇 等等","拨":"治理","遍":"走遍","拳":"屈指卷握起来的；徒手的武 等等","徒":"步行；空，白白地 等等","搜":"寻找，搜查","忍":"耐，抑制，感情不让表现出来；残酷，狠心残 等等","助":"帮助","傻":"笨，愚蠢太；呆，死心眼 等等","减":"降低，衰退","捕":"捕捉，捉拿","渡":"渡过，过水","程":"称量谷物，并用作度量衡的总名","窝":"鸟兽昆虫等的巢穴；凹陷的地方 等等","测":"度量水的深浅","抛":"投，扔；丢掉 等等","律":"规章，法则，法令规；约束严以 等等","库":"贮藏东西的地方或建筑物","规":"画圆形的工具；法则，章程，惯例 等等","租":"付出代价借用房屋、器物等；收取代价将房屋、器物等借给别人使用 等等","奥":"古时指房屋的西南角","梁":"水桥","速":"快，很快快","患":"灾难，祸害水；忧虑，计较 等等","嫩":"炒或火烧制的时间短猪肝要炒得；浅，淡，轻微的 等等","互":"彼此；交错，交替 等等","罚":"处罚，惩办","兽":"禽兽的总称","缘":"边边；沿着，顺着 等等","湿":"潮湿","湾":"水流弯曲的地方；海洋向陆地凹入的地方 等等","弯":"屈曲，不直；曲折的部分 等等","缩":"用绳子捆；蜷，收敛收 等等","馆":"接待宾客或旅客居住或食宿的房屋；某些服务性的商店 等等","烈":"猛，厉害猛；正直，刚毅刚 等等","巨":"大，很大","寒":"冷，凉；贫困 等等","魏":"周代诸侯国名，战国时期七雄之一；朝代名 等等","驾":"把车或农具等套在牲口身；操纵 等等","甜":"味甘","己":"自身；天干第六位，也用作次序第六 等等","谋":"计划，计策，主意；商议，商量不 等等","历":"经过","景":"日光耀；风光，风景 等等","颗":"小头","邪":"不正当，不正派；中医指引起疾病的某种因素与病理损害寒 等等","郎":"称呼青少年男子英俊；妇女称丈夫或情人 等等","盯":"注视","砖":"用土坯烧制的一种建筑材料；形状像砖的 等等","孤":"幼年丧父或父母双亡；单独 等等","标":"树梢","泪":"眼泪，泪腺分泌出的液体；像泪的东西蜡炬成灰 等等","牵":"拉，挽着，挽引向前；连带，带累 等等","纳":"收进，接收；接受 等等","锦":"带有彩色花纹的丝织品；色彩鲜艳华丽 等等","膜":"动、植物体内像薄皮的组织耳；像膜那样的薄皮橡 等等","展":"伸开，舒张开；发挥 等等","津":"渡口；中医指人体分泌出的液体 等等","突":"鼓起，凸出来；忽然 等等","阔":"宽广；疏略，不切实 等等","付":"交给，授予，支出；量词 等等","净":"清洁；洗，擦洗 等等","雷":"云层放电时发出的巨；一类爆炸性的武器 等等","饿":"饥之甚","邻":"接近的，住处靠近的人；〈古〉一种居民组织 等等","敲":"击，打；讹诈骗取财物或抬高价格 等等","倾":"侧，斜，歪；倒塌 等等","鞭":"皮制的马鞭","绘":"五彩绣品","扩":"放大，伸展；扩大","岸":"江、河、湖、海等水边的陆地；高大，严峻伟 等等","杖":"用手扶着走路的棍子；棍棒 等等","拟":"准备，打算；起草，初步设想 等等","迟":"慢慢走","怀":"胸前抱在；想念 等等","园":"种植蔬菜、花果等的地方；供游玩、娱乐或保育等的地方 等等","威":"尊严，声誉，名望；使人敬畏的力量或气 等等","趁":"追逐","私":"为自己；秘密，偷偷地 等等","稳":"安定，固定，不动摇；妥贴 等等","慌":"急，忙乱；不安，恐惧心 等等","肩":"担负敢","轰":"群车行驶声","珊":"珊瑚","伊":"彼，他，她","碰":"撞，触；遇到 等等","浓":"深厚，不淡薄","农":"种庄稼，种庄稼的；农民 等等","祝":"〈表〉良好的愿望；〈古〉断，削去，剪断 等等","勇":"敢干，有胆量；不畏惧，不推诿 等等","葬":"掩埋","悬":"吊，挂；挂念，惦记，关切的心情 等等","孝":"旧指尽心奉养和绝对服从父母；有关居丧的事 等等","纹":"丝织品上的花纹","疼":"喜爱，痛惜","誉":"名声；特指好的名 等等","洪":"大水","剩":"剩余","零":"落，衰落，雕落；细碎的，部分的 等等","坤":"八卦之一，代表地；女性的，阴性的 等等","录":"记载，登记；抄写 等等","割":"切下，截断；划分，分开，分裂 等等","棺":"棺材，装殓尸体的器具","缓":"迟，推迟；宽松，平和已 等等","瘦":"窄小的，瘠薄的，纤细的这鞋","鹿":"鹿科动物的总称","瓶":"汲水器","童":"小孩子；旧指未成年的男仆 等等","遣":"差，派差；送，打发 等等","娃":"小孩乖；旧时称美女女 等等","忧":"发愁，担心；可忧愁的事 等等","麻":"麻类植物的总名","径":"小路；直往，直接，直截了当 等等","筋":"肌腱或附着在骨上的韧带伤及；肉眼可见的皮下静脉之俗称 等等","剧":"极，猛烈，厉害；指戏剧 等等","译":"翻译，把一种语言文字翻译成另一种语言","柱":"支撑建筑物的构件；像柱子的东西 等等","骗":"欺蒙，说假话；用欺骗手段谋 等等","永":"长，水流长；长久，久远 等等","鼻":"鼻子","拆":"裂开","狂":"疯癲，精神失常；放荡，不受拘束 等等","碑":"古时宫、庙门前用来观测日影及拴牲畜的","肥":"土质好，富饶；能改良土壤，供给作物养分的物质 等等","疏":"去掉阻塞，使畅通；分，分散 等等","棉":"棉花；像棉的东西","瞪":"睁大眼睛直视","疾":"厌恶，憎恨；妒嫉 等等","辞":"诉讼，打官司","整":"不乱，有秩序；全的，不残缺 等等","醉":"饮酒过量或药物作用；用酒浸泡过的 等等","翁":"父亲我；丈夫的父亲或妻子的父亲 等等","潜":"在水面之下活动；隐蔽，隐藏的 等等","险":"地势扼要，难于通过；地势不平坦 等等","峡":"两面有山夹着的水道长江；两山之间或两陆地之间的狭窄地带 等等","碳":"化学元素，符号 C","阻":"险要的地方，路难走；挡住 等等","财":"财物","固":"结实，坚硬，牢靠坚；坚定，不变动 等等","琴":"某些乐器的名称","川":"河流","肝":"肝脏，人和高等动物重要器官之一","误":"错，荒谬；耽搁 等等","仪":"容貌，举止；按程序进行的礼 等等","嫌":"疑惑，疑忌；厌恶，不满意 等等","策":"计谋，办法；古代赶马的鞭子 等等","堤":"河堤，堤坝","灌":"浇，输送；注入 等等","盼":"看顾；想望，期待 等等","润":"潮湿，不干枯；加油或水，使不干 等等","臂":"胳膊","捏":"用手指夹；用手指捻 等等","维":"系物的大绳；系，连结 等等","姑":"父亲的姐妹；丈夫的母亲拜见翁 等等","埃":"尘土","秀":"谷物或植物吐穗开花麦苗；美好，美丽 等等","颤":"振动","凶":"不吉祥，不幸的；庄稼收成不 等等","消":"溶解，散失；除去，灭掉 等等","述":"记叙，陈说记；〈古〉遵循，依照 等等","爸":"父亲","液":"汁，流质","态":"形状，样子形；情况 等等","扬":"举起，高举；称颂 等等","槽":"四边高起，中间凹入的畜兽饮食器具","饶":"饶，饱也","翅":"鸟类、昆虫的翅膀","锌":"化学元素，符号 Zn","卫":"保护，防护；防护人员 等等","察":"观察","窗":"天窗","潮":"海水的涨落","娥":"女子容貌美好","款":"经费，钱财；条目第五条 等等","哨":"巡逻，警戒防守的岗位；一种发声尖响的叫子铁 等等","鸭":"水禽，鸭子","洋":"古水名","辨":"判别，区分，辨别"};
+
+  /* 单字字义，用于配对成功后的注释栏 */
+  
+
+  /* 地名读音说明，按词条索引 */
+  var NOTES = {
+    "六安":"安徽六安，「六」在这里读 lù，不读 liù。",
+    "蚌埠":"安徽蚌埠，「蚌」读 bèng，不读 bàng。",
+    "亳州":"安徽亳州，「亳」读 bó，和「毫」只差一横。",
+    "盱眙":"江苏盱眙，两个字基本只用于这个地名。",
+    "番禺":"广东番禺，「番」读 pān，不读 fān。",
+    "丽水":"浙江丽水，「丽」读 lí，不读 lì。",
+    "台州":"浙江台州，「台」读 tāi，不读 tái。",
+    "铅山":"江西铅山，「铅」读 yán，不读 qiān。",
+    "婺源":"江西婺源，「婺」读 wù，指古婺州一带。",
+    "鄱阳":"江西鄱阳，鄱阳湖由此得名，「鄱」读 pó。",
+    "涪陵":"重庆涪陵，「涪」读 fú，涪陵榨菜的产地。",
+    "邛崃":"四川邛崃，两字都较少见，「崃」读 lái。",
+    "犍为":"四川犍为，「犍」作地名读 qián。",
+    "阆中":"四川阆中，「阆」读 làng，不读 láng。",
+    "郫都":"四川郫都，「郫」读 pí，郫县豆瓣的产地。",
+    "什邡":"四川什邡，「什」读 shí，「邡」读 fāng。",
+    "华蓥":"四川华蓥，「蓥」读 yíng，指华蓥山。",
+    "睢宁":"江苏睢宁，「睢」读 suī，和「雎」形近。",
+    "沭阳":"江苏沭阳，「沭」读 shù，和「沐」形近。",
+    "兖州":"山东兖州，「兖」读 yǎn，古九州之一。",
+    "芝罘":"山东烟台芝罘，「罘」读 fú。",
+    "牟平":"山东牟平，「牟」作地名读 mù，不读 móu。",
+    "冠县":"山东冠县，「冠」读 guàn，不读 guān。",
+    "乐亭":"河北乐亭，「乐」作地名读 lào。",
+    "蔚县":"河北蔚县，「蔚」作地名读 yù，不读 wèi。",
+    "藁城":"河北藁城，「藁」读 gǎo。",
+    "涿州":"河北涿州，「涿」读 zhuō。",
+    "筠连":"四川筠连，「筠」作地名读 jūn。",
+    "珙县":"四川珙县，「珙」读 gǒng。",
+    "厦门":"福建厦门，「厦」读 xià，不读 shà。",
+    "东莞":"广东东莞，「莞」读 guǎn，不读 wǎn。",
+    "单县":"山东单县，「单」作地名读 shàn，不读 dān。",
+    "涡阳":"安徽涡阳，「涡」作地名读 guō，不读 wō。",
+    "黟县":"安徽黟县，「黟」读 yī，黄山脚下。",
+    "歙县":"安徽歙县，「歙」读 shè，歙砚的产地。",
+    "枞阳":"安徽枞阳，「枞」作地名读 zōng。",
+    "鄄城":"山东鄄城，「鄄」读 juàn。",
+    "郯城":"山东郯城，「郯」读 tán。",
+    "茌平":"山东茌平，「茌」读 chí。",
+    "东阿":"山东东阿，「阿」在这里读 ē，不读 ā。阿胶的产地。",
+    "井陉":"河北井陉，「陉」读 xíng，指山脉中断的地方。",
+    "鄠邑":"陕西西安鄠邑区，「鄠」读 hù。",
+    "邳州":"江苏邳州，「邳」读 pī。",
+    "濉溪":"安徽濉溪，「濉」读 suī。",
+    "砀山":"安徽砀山，「砀」读 dàng，砀山梨的产地。",
+    "弋阳":"江西弋阳，「弋」读 yì，不读 gē。弋阳腔的发源地。",
+    "于都":"江西于都，「都」在这里读 dū，不读 dōu。",
+    "长乐":"福建长乐，「乐」在这里读 lè，不读 yuè。",
+    "建瓯":"福建建瓯，「瓯」读 ōu。",
+    "衢州":"浙江衢州，「衢」读 qú。",
+    "嵊州":"浙江嵊州，「嵊」读 shèng。",
+    "鄞州":"浙江宁波鄞州，「鄞」读 yín。",
+    "甪直":"江苏苏州甪直古镇，「甪」读 lù，不读 yòng。",
+    "溧阳":"江苏溧阳，「溧」读 lì。",
+    "耒阳":"湖南耒阳，「耒」读 lěi。",
+    "郴州":"湖南郴州，「郴」读 chēn。"
+  };
+
+  var CFG = {
+    PAIRS: 6,
+    SCORE_HIT: 10,
+    COMBO_BONUS: 5,
+    REFILL_DELAY: 600
+  };
+
+  var TONE_MAP = {
+    'ā':1,'ē':1,'ī':1,'ō':1,'ū':1,'ǖ':1,
+    'á':2,'é':2,'í':2,'ó':2,'ú':2,'ǘ':2,
+    'ǎ':3,'ě':3,'ǐ':3,'ǒ':3,'ǔ':3,'ǚ':3,
+    'à':4,'è':4,'ì':4,'ò':4,'ù':4,'ǜ':4
+  };
+  var TONE_NAME = { 1:'一声', 2:'二声', 3:'三声', 4:'四声', 0:'轻声' };
+
+  function $(id){ return document.getElementById(id); }
+  var elScore=$('score'), elCombo=$('combo'), elAcc=$('acc');
+  var elL=$('colL'), elR=$('colR'), elTip=$('hint'), elBoard=$('board');
+  var elLines=$('lines'), elMatched=$('matchedN'), elTotal=$('totalN'), elRound=$('roundN');
+  var elPool=$('poolCount'), elChars=$('charCount');
+  var elExWord=$('exWord'), elExText=$('exText'), elExSay=$('exSay');
+  var elCalOverlay=$('calOverlay'), elCalGrid=$('calGrid'), elCalMonth=$('calMonth');
+  var elCalTodayN=$('calTodayN'), elCalMonthN=$('calMonthN'), elCalStreak=$('calStreak');
+
+  var G = {
+    score:0, combo:0, bestCombo:0, round:1,
+    hits:0, misses:0,
+    remaining:0, sel:null, locked:false,
+    items:[], mode:'all', lastWord:''
+  };
+
+  var TTS = { on:true };
+
+  /* ---------- 练习记录（按天累计配对成功数） ---------- */
+  var STORE_KEY = 'hanzi_match.days.v1';
+  var DAYS = {};
+
+  function pad2(n){ return n < 10 ? '0' + n : '' + n; }
+  function keyOf(d){ return d.getFullYear() + '-' + pad2(d.getMonth()+1) + '-' + pad2(d.getDate()); }
+
+  function loadDays(){
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return;
+      var o = JSON.parse(raw);
+      if (!o || typeof o !== 'object') return;
+      for (var k in o){
+        if (/^\d{4}-\d{2}-\d{2}$/.test(k) && typeof o[k] === 'number' && o[k] > 0) DAYS[k] = o[k];
+      }
+    } catch(e){ DAYS = {}; }
+  }
+
+  function saveDays(){
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(DAYS)); } catch(e){}
+  }
+
+  function recordMatch(){
+    var k = keyOf(new Date());
+    DAYS[k] = (DAYS[k] || 0) + 1;
+    saveDays();
+  }
+
+  function poolFor(mode){
+    if (mode === 'all') return WORDS;
+    var out = [];
+    for (var i=0;i<WORDS.length;i++){
+      var t = WORDS[i][2];
+      if (t === mode || (mode === 'w' && t === 'd')) out.push(WORDS[i]);
+    }
+    return out;
+  }
+
+  function refreshPoolCount(){
+    elPool.textContent = String(poolFor(G.mode).length);
+  }
+
+  // 词条里一共出现多少个不同的汉字
+  (function countChars(){
+    var set = {}, n = 0;
+    for (var i=0;i<WORDS.length;i++){
+      var w = WORDS[i][0];
+      for (var j=0;j<w.length;j++){
+        var c = w.charAt(j);
+        if (/[一-龥]/.test(c) && !set[c]){ set[c] = 1; n++; }
+      }
+    }
+    elChars.textContent = String(n);
+  })();
+
+  function shuffle(a){
+    for (var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; }
+    return a;
+  }
+
+  /* ---------- 抽题 ---------- */
+  function pickItems(mode, count){
+    var pool = poolFor(mode);
+    // 类型权重只在「全部」模式生效：地名稀有，多给几次机会
+    var weighted = [], weights = { w:1, s:0.6, p:5, d:2 };
+    for (var i=0;i<pool.length;i++){
+      weighted.push({ it:pool[i], w: mode === 'all' ? (weights[pool[i][2]] || 1) : 1 });
+    }
+    var picked = [], used = {}, guard = 0;
+    while (picked.length < count && guard++ < 800 && weighted.length){
+      var total = 0, k;
+      for (k=0;k<weighted.length;k++) total += weighted[k].w;
+      var r = Math.random() * total, idx = 0;
+      for (k=0;k<weighted.length;k++){ r -= weighted[k].w; if (r <= 0){ idx = k; break; } }
+      var item = weighted[idx].it;
+      weighted.splice(idx, 1);
+      if (used[item[0]]) continue;
+      used[item[0]] = 1;
+      picked.push(item);
+    }
+    return picked;
+  }
+
+  function newRound(keepScores){
+    if (!keepScores){
+      G.score = 0; G.combo = 0; G.hits = 0; G.misses = 0; G.round = 1;
+    } else {
+      G.round++;
+    }
+    var picked = pickItems(G.mode, CFG.PAIRS);
+    G.items = picked.map(function(it, i){
+      return { id:i, w:it[0], p:it[1], t:it[2], note:NOTES[it[0]] || '' };
+    });
+    G.remaining = G.items.length;
+    G.sel = null;
+    G.locked = false;
+    elLines.innerHTML = '';
+    render();
+    renderHud();
+    elTip.innerHTML = hintFor(G.mode);
+    elExWord.className = 'ex-word empty';
+    elExWord.textContent = '配对成功后会显示读音说明';
+    elExText.textContent = '';
+    elExSay.hidden = true;
+  }
+
+  function hintFor(mode){
+    if (mode === 's') return '这一轮只出单字。先在心里读一遍，再找拼音。';
+    if (mode === 'p') return '这一轮只出地名，都是容易读错的。';
+    if (mode === 'w') return '这一轮只出常用词。点左边的词，再点右边对应的拼音。';
+    return '点左边的汉字，再点右边对应的拼音。标「地名」的是容易读错的地名。';
+  }
+
+  /* ---------- 渲染 ---------- */
+  function render(){
+    elL.innerHTML = ''; elR.innerHTML = '';
+    var left = G.items.slice();
+    var right = shuffle(G.items.slice());
+    for (var i=0;i<left.length;i++) elL.appendChild(makeTile(left[i], 'L'));
+    for (var j=0;j<right.length;j++) elR.appendChild(makeTile(right[j], 'R'));
+  }
+
+  function makeTile(item, side){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'tile ' + (side === 'L' ? 'zh' : 'py');
+    b.setAttribute('data-id', item.id);
+
+    var s = document.createElement('span');
+    s.className = 'word';
+    s.textContent = side === 'L' ? item.w : item.p;
+    b.appendChild(s);
+
+    // 只在「全部」模式标类型；单一模式的按钮已经说明了一切
+    if (G.mode === 'all' && (item.t === 'p' || item.t === 's' || item.t === 'd')){
+      var tg = document.createElement('span');
+      tg.className = 'tag ' + item.t;
+      tg.textContent = item.t === 'p' ? '地名' : (item.t === 'd' ? '多音' : '单字');
+      b.appendChild(tg);
+    }
+
+    b.addEventListener('click', function(){ onPick(b, item.id); });
+    return b;
+  }
+
+  function renderHud(){
+    elScore.textContent = String(G.score);
+    elCombo.textContent = String(G.combo);
+    var total = G.hits + G.misses;
+    elAcc.textContent = total ? Math.round(G.hits / total * 100) + '%' : '—';
+    elMatched.textContent = String(G.items.length - G.remaining);
+    elTotal.textContent = String(G.items.length);
+    elRound.textContent = String(G.round);
+  }
+
+  /* ---------- 交互 ---------- */
+  function onPick(el, id){
+    if (G.locked) return;
+    if (el.classList.contains('matched')) return;
+
+    if (G.sel && G.sel.el === el){
+      el.classList.remove('sel');
+      G.sel = null;
+      return;
+    }
+    if (!G.sel){
+      el.classList.add('sel');
+      G.sel = { id:id, el:el };
+      return;
+    }
+    var a = G.sel;
+    if (a.el.parentNode === el.parentNode){
+      a.el.classList.remove('sel');
+      el.classList.add('sel');
+      G.sel = { id:id, el:el };
+      return;
+    }
+    var b = { id:id, el:el };
+    if (a.id === b.id) doMatch(a, b);
+    else doMiss(a, b);
+  }
+
+  function doMatch(a, b){
+    G.locked = true;
+    G.combo++;
+    G.hits++;
+    if (G.combo > G.bestCombo) G.bestCombo = G.combo;
+    var gain = CFG.SCORE_HIT + (G.combo % 5 === 0 ? CFG.COMBO_BONUS : 0);
+    G.score += gain;
+    G.remaining--;
+
+    var L = a.el.classList.contains('zh') ? a.el : b.el;
+    var R = a.el.classList.contains('zh') ? b.el : a.el;
+
+    a.el.classList.remove('sel');
+    b.el.classList.remove('sel');
+    a.el.classList.add('ok');
+    b.el.classList.add('ok');
+    G.sel = null;
+
+    drawLink(L, R);
+
+    var item = G.items[a.id];
+    G.lastWord = item.w;
+    recordMatch();
+    showExample(item);
+    speak(item.w);
+    elTip.innerHTML = '<b>+' + gain + '</b>　' + esc(item.w);
+    renderHud();
+
+    setTimeout(function(){
+      a.el.classList.add('matched');
+      b.el.classList.add('matched');
+      G.locked = false;
+      if (G.remaining <= 0){
+        elTip.innerHTML = '<span class="gold">这一组完成了，自动换下一组</span>';
+        setTimeout(function(){ newRound(true); }, CFG.REFILL_DELAY);
+      }
+    }, 280);
+  }
+
+  function doMiss(a, b){
+    G.combo = 0;
+    G.misses++;
+    renderHud();
+    a.el.classList.remove('sel');
+    b.el.classList.add('bad');
+    elTip.innerHTML = '<span class="warn">不对，再看一眼</span>';
+    setTimeout(function(){
+      a.el.classList.remove('sel');
+      b.el.classList.remove('bad');
+      G.sel = null;
+    }, 540);
+  }
+
+  /* ---------- 信息面板 ---------- */
+  function showExample(item){
+    elExWord.className = 'ex-word';
+    elExWord.innerHTML = esc(item.w) + '<span class="py">' + esc(item.p) + '</span>';
+
+    if (item.note){
+      elExText.textContent = item.note;
+    } else if (item.t === 's'){
+      var g = MEANING[item.w];
+      elExText.textContent = g ? ('字义：' + g) : ('单字　' + tonesOf(item.p) + '。');
+    } else if (item.t === 'd'){
+      elExText.textContent = '多音字词　' + tonesOf(item.p) + '。';
+    } else {
+      elExText.textContent = '常用词　' + tonesOf(item.p) + '。';
+    }
+    elExSay.hidden = !('speechSynthesis' in window);
+  }
+
+  function tonesOf(py){
+    var parts = py.split(' ');
+    var out = [];
+    for (var i=0;i<parts.length;i++){
+      var t = 0, s = parts[i];
+      for (var j=0;j<s.length;j++){ if (TONE_MAP[s[j]]){ t = TONE_MAP[s[j]]; break; } }
+      out.push(TONE_NAME[t]);
+    }
+    return out.join(' + ');
+  }
+
+  /* ---------- 连线 ---------- */
+  var NS = 'http://www.w3.org/2000/svg';
+
+  function drawLink(elL2, elR2){
+    var br = elBoard.getBoundingClientRect();
+    var a = elL2.getBoundingClientRect();
+    var b = elR2.getBoundingClientRect();
+    var x1 = a.left + a.width  / 2 - br.left;
+    var y1 = a.top  + a.height / 2 - br.top;
+    var x2 = b.left + b.width  / 2 - br.left;
+    var y2 = b.top  + b.height / 2 - br.top;
+    var dx = Math.max(20, Math.abs(x2 - x1) * 0.42);
+
+    var d = 'M' + x1 + ' ' + y1 +
+            ' C' + (x1 + dx) + ' ' + y1 + ', ' +
+                    (x2 - dx) + ' ' + y2 + ', ' +
+                    x2 + ' ' + y2;
+
+    var g = document.createElementNS(NS, 'g');
+
+    var halo = document.createElementNS(NS, 'path');
+    halo.setAttribute('class', 'link-halo');
+    halo.setAttribute('d', d);
+    halo.setAttribute('pathLength', '100');
+    g.appendChild(halo);
+
+    var p = document.createElementNS(NS, 'path');
+    p.setAttribute('class', 'link');
+    p.setAttribute('d', d);
+    p.setAttribute('pathLength', '100');
+    g.appendChild(p);
+
+    [[x1, y1], [x2, y2]].forEach(function(pt){
+      var c = document.createElementNS(NS, 'circle');
+      c.setAttribute('class', 'link-dot');
+      c.setAttribute('cx', pt[0]);
+      c.setAttribute('cy', pt[1]);
+      c.setAttribute('r', 3.2);
+      g.appendChild(c);
+    });
+
+    elLines.appendChild(g);
+
+    // 同一元素上有绘制和淡出两个动画，必须按名字区分
+    p.addEventListener('animationend', function(ev){
+      if (ev.animationName === 'fadeOut' && g.parentNode) g.parentNode.removeChild(g);
+    });
+  }
+
+  /* ---------- 朗读 ---------- */
+  function speak(text){
+    if (!TTS.on || !('speechSynthesis' in window)) return;
+    try {
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(text);
+      u.lang = 'zh-CN';
+      u.rate = 0.85;
+      u.pitch = 1;
+      window.speechSynthesis.speak(u);
+    } catch(e){ /* 系统没有中文语音时静默跳过 */ }
+  }
+
+  /* ---------- 工具 ---------- */
+  function esc(s){
+    return String(s).replace(/[&<>"]/g, function(c){
+      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c];
+    });
+  }
+
+  /* ---------- 事件 ---------- */
+  $('modes').addEventListener('click', function(e){
+    var btn = e.target.closest('.mode');
+    if (!btn) return;
+    var m = btn.getAttribute('data-mode');
+    if (m === G.mode) return;
+    G.mode = m;
+    document.body.setAttribute('data-mode', m);
+    var all = this.querySelectorAll('.mode');
+    for (var i=0;i<all.length;i++) all[i].classList.toggle('on', all[i] === btn);
+    refreshPoolCount();
+    newRound(false);
+  });
+
+  $('btnRestart').addEventListener('click', function(){ newRound(false); });
+
+  $('ttsToggle').addEventListener('click', function(){
+    TTS.on = !TTS.on;
+    this.textContent = TTS.on ? '🔊 发音开' : '🔇 发音关';
+    this.classList.toggle('on', TTS.on);
+    if (!TTS.on && 'speechSynthesis' in window){ try{ window.speechSynthesis.cancel(); }catch(e){} }
+  });
+
+  elExSay.addEventListener('click', function(){
+    var on = TTS.on; TTS.on = true; speak(G.lastWord); TTS.on = on;
+  });
+
+  // 只有宽度明显变化才丢弃连线（手机地址栏收起这类小抖动不算）
+  var lastW = window.innerWidth;
+  window.addEventListener('resize', function(){
+    if (Math.abs(window.innerWidth - lastW) > 40){
+      elLines.innerHTML = '';
+      lastW = window.innerWidth;
+    }
+  });
+
+  /* ---------- 日历 ---------- */
+  var calCursor = new Date();
+
+  function streakDays(){
+    var n = 0, d = new Date();
+    if (!DAYS[keyOf(d)]) d.setDate(d.getDate() - 1);
+    while (DAYS[keyOf(d)]){ n++; d.setDate(d.getDate() - 1); }
+    return n;
+  }
+
+  function renderCal(){
+    var y = calCursor.getFullYear(), m = calCursor.getMonth();
+    elCalMonth.textContent = y + ' 年 ' + (m + 1) + ' 月';
+
+    var start = new Date(y, m, 1).getDay();
+    var days = new Date(y, m + 1, 0).getDate();
+    var today = new Date();
+    var todayKey = keyOf(today);
+    var todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+
+    var html = '';
+    for (var i = 0; i < start; i++) html += '<div class="cal-day blank"></div>';
+    for (var d = 1; d <= days; d++){
+      var k = y + '-' + pad2(m + 1) + '-' + pad2(d);
+      var n = DAYS[k] || 0;
+      var cls = 'cal-day';
+      if (n) cls += ' did';
+      if (k === todayKey) cls += ' today';
+      if (new Date(y, m, d).getTime() > todayMid) cls += ' future';
+      html += '<div class="' + cls + '"><div class="num">' + d +
+              '</div><div class="cnt">' + n + '</div></div>';
+    }
+    elCalGrid.innerHTML = html;
+
+    var monthSum = 0;
+    for (var dd = 1; dd <= days; dd++) monthSum += DAYS[y + '-' + pad2(m + 1) + '-' + pad2(dd)] || 0;
+
+    elCalTodayN.textContent = String(DAYS[todayKey] || 0);
+    elCalMonthN.textContent = String(monthSum);
+    elCalStreak.textContent = streakDays() + ' 天';
+  }
+
+  function openCal(){
+    calCursor = new Date();
+    renderCal();
+    elCalOverlay.classList.add('show');
+  }
+  function closeCal(){ elCalOverlay.classList.remove('show'); }
+
+  $('calBtn').addEventListener('click', openCal);
+  $('calClose').addEventListener('click', closeCal);
+  elCalOverlay.addEventListener('click', function(e){ if (e.target === elCalOverlay) closeCal(); });
+  $('calPrev').addEventListener('click', function(){
+    calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth() - 1, 1); renderCal();
+  });
+  $('calNext').addEventListener('click', function(){
+    calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth() + 1, 1); renderCal();
+  });
+  $('calToday').addEventListener('click', function(){ calCursor = new Date(); renderCal(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') closeCal(); });
+
+  loadDays();
+  refreshPoolCount();
+  newRound(false);
+})();
+</script>
+</body>
+</html>
