@@ -1,152 +1,99 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#f4f1ea">
-<title>汉字8105</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#2F6DB5">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Demos · 免费试玩</title>
 <style>
   :root{
-    --bg:#f4f1ea;
-    --card:#fffdf8;
-    --ink:#2e2a24;
-    --ink-soft:#8a8177;
-    --green:#2f6b4f;
-    --gold:#b8852b;
-    --line:#e6dfd3;
+    --bg:#FBF7EE; --panel:#FFFDF8; --line:#E7DFCF; --text:#2C2A26; --muted:#8C8577;
+    --blue:#2F6DB5;
   }
-  *{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  html,body{ min-height:100%; }
+  *{box-sizing:border-box}
   body{
-    background:var(--bg);
-    color:var(--ink);
-    font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
-    display:flex; justify-content:center;
-    padding:max(28px, env(safe-area-inset-top)) 20px 40px;
+    margin:0; min-height:100vh; color:var(--text);
+    background:radial-gradient(1100px 620px at 50% -10%, #FFFDF7 0%, var(--bg) 62%);
+    font-family:"PingFang SC","Helvetica Neue",Arial,sans-serif;
+    display:flex; flex-direction:column;
   }
-  .wrap{ width:100%; max-width:480px; }
-
-  header{ margin-bottom:32px; }
-  h1{
-    font-family:"Songti SC","SimSun","STSong",serif;
-    font-size:34px; font-weight:700; letter-spacing:.2em;
-    color:var(--ink);
-    display:flex; align-items:baseline; gap:.1em;
-  }
-  h1 .num{
-    font-family:"SF Mono",Menlo,Consolas,monospace;
-    font-size:.6em; font-weight:700;
-    letter-spacing:.02em;
-    color:var(--gold);
-  }
-  .sub{
-    font-size:11.5px; letter-spacing:.3em;
-    color:var(--ink-soft); margin-top:9px;
-  }
-  .origin{
-    font-size:11px; line-height:1.7;
-    color:#b3aa9c; letter-spacing:.03em;
-    margin-top:12px;
-  }
-  .origin b{ color:#9a8f7e; font-weight:600; letter-spacing:.02em; }
-  .rule{
-    height:1px; background:var(--line);
-    margin-top:22px;
-  }
-
-  main{ display:flex; flex-direction:column; gap:14px; }
-
+  header{width:min(100%,920px); margin:0 auto; padding:40px 20px 8px}
+  h1{font-size:26px; margin:0; letter-spacing:.5px}
+  h1 span{color:var(--blue)}
+  header p{color:var(--muted); font-size:14px; margin:10px 0 0; line-height:1.7}
+  main{width:min(100%,920px); margin:0 auto; padding:22px 20px 48px; flex:1}
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:16px}
   .card{
-    display:block; position:relative;
-    background:var(--card);
-    border:1.5px solid var(--line);
-    border-radius:18px;
-    padding:20px 20px 18px;
-    text-decoration:none; color:inherit;
-    box-shadow:0 2px 8px rgba(120,108,92,.06);
-    transition:transform .12s ease, border-color .16s ease, box-shadow .16s ease;
+    background:var(--panel); border:1px solid var(--line); border-radius:14px;
+    padding:20px; display:flex; flex-direction:column; gap:10px;
+    box-shadow:0 10px 26px rgba(90,75,50,.06);
   }
-  .card:hover{ border-color:#cfbfa2; box-shadow:0 6px 18px rgba(120,108,92,.11); }
-  .card:active{ transform:scale(.985); }
-
-  .card-title{
-    font-size:19px; font-weight:700; letter-spacing:.06em;
-    color:var(--ink);
+  .card h2{font-size:18px; margin:0}
+  .card .tag{display:inline-block; align-self:flex-start; font-size:11px; color:var(--blue);
+    border:1px solid rgba(47,109,181,.35); background:rgba(47,109,181,.07);
+    border-radius:999px; padding:3px 9px}
+  .card p{margin:0; color:var(--muted); font-size:13px; line-height:1.65; flex:1}
+  .card a.btn{
+    align-self:flex-start; display:inline-block; margin-top:4px;
+    background:var(--blue); color:#fff; text-decoration:none;
+    padding:9px 20px; border-radius:10px; font-size:14px; font-weight:600;
   }
-  .card-desc{
-    font-size:12.5px; line-height:1.75;
-    color:var(--ink-soft); margin-top:7px;
-  }
-  .card-tags{
-    display:flex; flex-wrap:wrap; gap:6px; margin-top:11px;
-  }
-  .tag{
-    font-size:10.5px; letter-spacing:.06em;
-    color:#9a8f7e; background:#f6f2ea;
-    border-radius:6px; padding:2.5px 8px;
-  }
-  .card-go{
-    position:absolute; right:20px; top:20px;
-    font-size:12px; color:var(--gold); letter-spacing:.1em;
-  }
-
-  footer{
-    margin-top:36px;
-    font-size:11px; line-height:1.9;
-    color:#bdb4a7; letter-spacing:.05em;
-  }
-
-  .empty{
-    border:1.5px dashed var(--line);
-    border-radius:18px;
-    padding:26px 20px;
-    text-align:center;
-    font-size:12.5px; color:#c0b7a9;
-  }
+  .card a.btn:hover{filter:brightness(1.08)}
+  .card.soon{opacity:.65; border-style:dashed; box-shadow:none}
+  .card.soon .btn{background:#CFC6B6; cursor:default}
+  footer{width:min(100%,920px); margin:0 auto; padding:0 20px 36px; color:var(--muted); font-size:12px; line-height:1.8}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <h1>汉字<span class="num">8105</span></h1>
-    <div class="sub">认字 · 拆字 · 写字</div>
-    <div class="origin">
-      <b>8105</b> 是《通用规范汉字表》的收字总数：一级 3500 · 二级 3000 · 三级 1605。<br>
-      该表由国务院于 2013 年发布，是现行汉字使用规范。
+<header>
+  <h1><span>Demos</span> · 免费试玩</h1>
+  <p>这里放各个小作品的试用版与免费完整版。试玩免费，付费作品的完整版需购买。</p>
+</header>
+<main>
+  <div class="grid">
+    <div class="card">
+      <span class="tag">汉字 · 拼音 · 手机可玩</span>
+      <h2>汉字拼音配对</h2>
+      <p>2264 条 · 1504 个汉字，全部 / 词语 / 单字 / 地名四种模式。<br>配对成功显示读音与释义，带朗读、连击计分和练习日历，标「地名」的是容易读错的地名。</p>
+      <a class="btn" href="hanzi_match/index.html">开始游戏</a>
     </div>
-    <div class="rule"></div>
-  </header>
-
-  <main>
-    <!-- 汉字拼音配对固定置顶，新游戏一律加在它下面 -->
-    <a class="card" href="./hanzi_match/">
-      <div class="card-go">进入 →</div>
-      <div class="card-title">汉字拼音配对</div>
-      <div class="card-desc">左边出字词，右边出拼音，点两边配对，配对成功会牵一条线，并显示读音说明。分全部 / 词语 / 单字 / 地名四种模式，单字卡带字典释义。</div>
-      <div class="card-tags">
-        <span class="tag">2264 条</span>
-        <span class="tag">1504 个汉字</span>
-        <span class="tag">带调号</span>
-      </div>
-    </a>
-
-    <a class="card" href="./wubi_typing/">
-      <div class="card-go">进入 →</div>
-      <div class="card-title">五笔消消乐</div>
-      <div class="card-desc">屏幕上出三个字，按出它们的五笔编码就能消掉。边打字边复习字根口诀。</div>
-      <div class="card-tags">
-        <span class="tag">630 字</span>
-        <span class="tag">一级 · 二级简码</span>
-        <span class="tag">手机可用</span>
-      </div>
-    </a>
-
-    <div class="empty">还有位置，继续加</div>
-  </main>
-
-  <footer>
-    纯前端，无需安装。进度与设置存在本机浏览器。
-  </footer>
-</div>
+    <div class="card">
+      <span class="tag">英语 · 初中 · 免费完整版</span>
+      <h2>初中英语连线消消乐</h2>
+      <p>单词 / 短语两种模式，1924 词 + 171 短语。<br>英文卡片带词性标注和 TTS 发音，配对出错会自动记入错词本，可单独复习。</p>
+      <a class="btn" href="english-matching-demo/index.html">开始游戏</a>
+    </div>
+    <div class="card">
+      <span class="tag">英语 · 高中 · 免费</span>
+      <h2>高中英语连线消消乐</h2>
+      <p>高中新增 1002 词 + 305 条常用搭配，词性标注、例句和 TTS 发音。<br>配对成功看例句，错词自动进本；单词页紫色，词组页米黄。</p>
+      <a class="btn" href="highschool-matching-demo/index.html">开始游戏</a>
+    </div>
+    <div class="card">
+      <span class="tag">意大利语 · A1–B1</span>
+      <h2>Italiano2000 消消乐</h2>
+      <p>输入落下的意大利语单词即可消除。<br>试玩版含 200 个精选词，带计时、连击和意语朗读；完整版 2085 词。</p>
+      <a class="btn" href="italiano2000-demo/index.html">开始试玩</a>
+    </div>
+    <div class="card">
+      <span class="tag">意大利语 · A1–B1 · 手机可玩</span>
+      <h2>Italiano2000 连连看</h2>
+      <p>词义配对 / 语法搭配 / 固定表达三种模式，带意语背景音乐。<br>试玩版含 200 词；完整版 1032 词。</p>
+      <a class="btn" href="italiano2000-matching-demo/index.html">开始试玩</a>
+    </div>
+    <div class="card soon">
+      <span class="tag">敬请期待</span>
+      <h2>更多试玩</h2>
+      <p>其他语言的小作品会陆续放到这里。</p>
+      <span class="btn">即将上线</span>
+    </div>
+  </div>
+</main>
+<footer>
+  试玩版可自由分享链接，但请勿转售或拆分词库。完整版购买后获得个人使用授权。
+</footer>
 </body>
 </html>
